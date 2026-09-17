@@ -1,0 +1,24 @@
+{
+  "name": "os_cpu_scheduling_simulator",
+  "version": "1.0.0",
+  "description": "CPU Scheduling Simulator for CMPG 324 built using JavaScript and Tailwind CSS.",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "npx @tailwindcss/cli -i ./src/css/input.css -o ./dist/output.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bongo87/OS_cpu_scheduling_simulator.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bongo87/OS_cpu_scheduling_simulator/issues"
+  },
+  "homepage": "https://github.com/bongo87/OS_cpu_scheduling_simulator#readme",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}
