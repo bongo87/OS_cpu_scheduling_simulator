@@ -167,19 +167,62 @@ function renderWorkloadTable() {
 }
 
 function runSimulation() {
-  if (currentWorkload.length === 0) return;
+  if (!currentWorkload || currentWorkload.length === 0) {
+    console.warn("Simulation aborted: Workload is empty.");
+    return;
+  }
 
   const quantum = parseInt(document.getElementById("timeQuantum").value, 10) || 2;
 
-  const results = [
-    runFCFS(currentWorkload),
-    runSRTF(currentWorkload),
-    runRoundRobin(currentWorkload, quantum),
-  ];
+  // Defensive check: Ensure required algorithm functions exist
+  const missingFunctions = [];
+  if (typeof runFCFS !== "function") missingFunctions.push("runFCFS");
+  if (typeof runSRTF !== "function") missingFunctions.push("runSRTF");
+  if (typeof runRoundRobin !== "function") missingFunctions.push("runRoundRobin");
 
-  renderGanttCharts(results);
-  renderMetricsTable(results);
-  renderComparisonChart("comparisonChart", results);
+  if (missingFunctions.length > 0) {
+    console.error(`Simulation aborted: Missing function(s) -> ${missingFunctions.join(", ")}`);
+    alert(`Error: The following algorithm scripts failed to load: ${missingFunctions.join(", ")}`);
+    return;
+  }
+
+  try {
+    const fcfsRes = runFCFS(currentWorkload);
+    const srtfRes = runSRTF(currentWorkload);
+    const rrRes = runRoundRobin(currentWorkload, quantum);
+
+    const rawResults = [fcfsRes, srtfRes, rrRes];
+
+    // Defensive check: Normalize missing metric properties to prevent downstream failures
+    const results = rawResults.map((res) => {
+      if (!res) return null;
+      return {
+        ...res,
+        avgWaitingTime: Number(res.avgWaitingTime) || 0,
+        avgTurnaroundTime: Number(res.avgTurnaroundTime) || 0,
+        avgResponseTime: Number(res.avgResponseTime) || 0,
+        cpuUtilization: Number(res.cpuUtilization) || 0,
+        throughput: Number(res.throughput) || 0,
+      };
+    }).filter(Boolean);
+
+    if (results.length === 0) {
+      console.error("Simulation failed: Algorithm functions returned invalid data.");
+      return;
+    }
+
+    renderGanttCharts(results);
+    renderMetricsTable(results);
+
+    if (typeof renderComparisonChart === "function") {
+      renderComparisonChart("comparisonChart", results);
+    } else {
+      console.warn("renderComparisonChart function is missing. Skipping chart render.");
+    }
+  } catch (error) {
+    console.error("An error occurred during simulation execution:", error);
+    alert(`Simulation Error: ${error.message}`);
+  }
 }
 
 function renderGanttCharts(results) {
@@ -191,34 +234,36 @@ function renderGanttCharts(results) {
     card.className = "bg-slate-900/90 p-4 rounded-xl border border-slate-700/80 shadow-inner";
 
     let chartHtml = `<h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center justify-between">
-      <span>${res.algorithm}</span>
-      <span class="text-xs font-normal text-slate-400">Total Time: ${res.totalSimulationTime} units</span>
+      <span>${res.algorithm || "Algorithm"}</span>
+      <span class="text-xs font-normal text-slate-400">Total Time: ${res.totalSimulationTime || 0} units</span>
     </h3>`;
     
     chartHtml += `<div class="flex overflow-x-auto pb-2 gap-1 border-b border-slate-800/80 scrollbar-thin">`;
 
-    res.ganttChart.forEach((block) => {
-      const duration = block.endTime - block.startTime;
-      const minWidth = Math.max(duration * 32, 44);
-      const isIdle = block.processId === "IDLE";
+    if (Array.isArray(res.ganttChart)) {
+      res.ganttChart.forEach((block) => {
+        const duration = block.endTime - block.startTime;
+        const minWidth = Math.max(duration * 32, 44);
+        const isIdle = block.processId === "IDLE";
 
-      let color = "#334155";
-      if (!isIdle) {
-        const pIndex = parseInt(block.processId.replace("P", ""), 10) || 0;
-        color = COLOR_PALETTE[pIndex % COLOR_PALETTE.length];
-      }
+        let color = "#334155";
+        if (!isIdle) {
+          const pIndex = parseInt(block.processId.replace("P", ""), 10) || 0;
+          color = COLOR_PALETTE[pIndex % COLOR_PALETTE.length];
+        }
 
-      chartHtml += `
-        <div style="min-width: ${minWidth}px; background-color: ${color};" 
-             class="h-12 flex flex-col justify-between p-1.5 rounded-lg text-slate-950 font-black text-xs shadow-md transition-transform hover:scale-105">
-          <span>${block.processId}</span>
-          <div class="flex justify-between text-[10px] opacity-90 font-mono">
-            <span>${block.startTime}</span>
-            <span>${block.endTime}</span>
+        chartHtml += `
+          <div style="min-width: ${minWidth}px; background-color: ${color};" 
+               class="h-12 flex flex-col justify-between p-1.5 rounded-lg text-slate-950 font-black text-xs shadow-md transition-transform hover:scale-105">
+            <span>${block.processId}</span>
+            <div class="flex justify-between text-[10px] opacity-90 font-mono">
+              <span>${block.startTime}</span>
+              <span>${block.endTime}</span>
+            </div>
           </div>
-        </div>
-      `;
-    });
+        `;
+      });
+    }
 
     chartHtml += `</div>`;
     card.innerHTML = chartHtml;
@@ -232,11 +277,11 @@ function renderMetricsTable(results) {
     .map(
       (m) => `
     <tr class="hover:bg-slate-800/60 transition-colors">
-      <td class="p-2.5 font-bold text-cyan-300">${m.algorithm}</td>
-      <td class="p-2.5">${m.avgWaitingTime.toFixed(2)}</td>
-      <td class="p-2.5">${m.avgTurnaroundTime.toFixed(2)}</td>
-      <td class="p-2.5">${m.cpuUtilization.toFixed(1)}%</td>
-      <td class="p-2.5">${m.throughput.toFixed(3)}</td>
+      <td class="p-2.5 font-bold text-cyan-300">${m.algorithm || "N/A"}</td>
+      <td class="p-2.5">${(m.avgWaitingTime || 0).toFixed(2)}</td>
+      <td class="p-2.5">${(m.avgTurnaroundTime || 0).toFixed(2)}</td>
+      <td class="p-2.5">${(m.cpuUtilization || 0).toFixed(1)}%</td>
+      <td class="p-2.5">${(m.throughput || 0).toFixed(3)}</td>
     </tr>
   `
     )
