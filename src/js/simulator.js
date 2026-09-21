@@ -16,23 +16,25 @@ document.addEventListener("DOMContentLoaded", () => {
       <!-- Controls Card -->
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg space-y-4">
         <h2 class="text-lg font-bold text-white flex items-center gap-2">
-          <span>⚙️</span> Simulation Controls
+          <span>⚙️</span> Simulation Controls (Audio-Video System)
         </h2>
         
         <div>
           <label class="block text-xs text-slate-400 mb-1">PROCESS COUNT</label>
           <select id="processCountSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
-            <option value="4">4 Processes</option>
-            <option value="5">5 Processes</option>
-            <option value="6">6 Processes</option>
-            <option value="8">8 Processes</option>
             <option value="10" selected>10 Processes</option>
+            <option value="20">20 Processes</option>
+            <option value="30">30 Processes</option>
+            <option value="40">40 Processes</option>
+            <option value="50">50 Processes</option>
           </select>
         </div>
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">TIME QUANTUM (RR)</label>
-          <input id="quantumInput" type="number" min="1" max="10" value="4" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500" />
+          <div id="quantumDisplay" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
+            Auto-generated (random)
+          </div>
         </div>
 
         <div class="flex gap-3 pt-2">
@@ -48,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <!-- Generated Workload Table -->
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg">
         <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <span>📊</span> Generated Workload
+          <span>📊</span> Generated Workload (Audio-Video Processes)
         </h2>
         <div class="overflow-y-auto max-h-52 pr-1">
           <table class="w-full text-xs text-left">
@@ -57,7 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-l">PID</th>
                 <th class="p-2">ARRIVAL TIME</th>
                 <th class="p-2">BURST TIME</th>
-                <th class="p-2 rounded-r">PRIORITY</th>
+                <th class="p-2">PRIORITY</th>
+                <th class="p-2 rounded-r">TIME QUANTUM</th>
               </tr>
             </thead>
             <tbody id="workloadTableBody" class="divide-y divide-slate-700/50 text-slate-300">
@@ -79,12 +82,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-l">ALGORITHM</th>
                 <th class="p-2">AVG WAIT</th>
                 <th class="p-2">AVG TAT</th>
+                <th class="p-2">AVG RESP</th>
                 <th class="p-2">CPU UTIL</th>
                 <th class="p-2 rounded-r">THROUGHPUT</th>
               </tr>
             </thead>
             <tbody id="metricsTableBody" class="divide-y divide-slate-700/50 text-slate-300 font-mono">
-              <tr><td colspan="5" class="p-3 text-center text-slate-500">Run simulation to view metrics</td></tr>
+              <tr><td colspan="6" class="p-3 text-center text-slate-500">Run simulation to view metrics</td></tr>
             </tbody>
           </table>
         </div>
@@ -130,13 +134,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
     currentProcesses = [];
 
+    let currentArrivalTime = 0;
     for (let i = 1; i <= count; i++) {
+      // Incremental arrival time with random increments
+      const arrivalIncrement = Math.floor(Math.random() * 3); // 0, 1, or 2
+      currentArrivalTime += arrivalIncrement;
+
       currentProcesses.push({
         id: `P${i}`,
-        arrivalTime: Math.floor(Math.random() * 8),
-        burstTime: Math.floor(Math.random() * 10) + 1,
-        priority: Math.floor(Math.random() * 5) + 1,
+        arrivalTime: currentArrivalTime,
+        burstTime: Math.floor(Math.random() * 10) + 1, // Random burst time 1-10
+        priority: Math.floor(Math.random() * 5) + 1, // Random priority 1-5
+        timeQuantum: Math.floor(Math.random() * 5) + 2, // Random time quantum 2-6
       });
+    }
+
+    // Generate a random time quantum for Round Robin simulation
+    const randomQuantum = Math.floor(Math.random() * 5) + 2; // 2-6
+    const quantumDisplay = document.getElementById("quantumDisplay");
+    if (quantumDisplay) {
+      quantumDisplay.textContent = `Q=${randomQuantum} (random)`;
     }
 
     // Render generated processes to workload table
@@ -149,19 +166,19 @@ document.addEventListener("DOMContentLoaded", () => {
         <td class="p-2">${p.arrivalTime}</td>
         <td class="p-2">${p.burstTime}</td>
         <td class="p-2"><span class="px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-200">Priority ${p.priority}</span></td>
+        <td class="p-2"><span class="px-2 py-0.5 rounded text-xs bg-purple-700 text-purple-200">Q=${p.timeQuantum}</span></td>
       </tr>
     `
       )
       .join("");
+    
+    return randomQuantum;
   }
 
   // 3. Main Controller Runner Hook
   function executeSimulation() {
-    if (currentProcesses.length === 0) {
-      generateWorkload();
-    }
-
-    const quantum = parseInt(document.getElementById("quantumInput").value, 10) || 2;
+    // Generate workload with random quantum
+    const quantum = generateWorkload();
 
     // Deep clone process list to avoid mutation across algorithm executions
     const procsFcfs = JSON.parse(JSON.stringify(currentProcesses));
@@ -184,6 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td class="p-2 font-bold text-white">${r.algorithm}</td>
         <td class="p-2 text-cyan-400">${r.avgWaitingTime.toFixed(2)}</td>
         <td class="p-2 text-emerald-400">${r.avgTurnaroundTime.toFixed(2)}</td>
+        <td class="p-2 text-pink-400">${(r.avgResponseTime || 0).toFixed(2)}</td>
         <td class="p-2 text-amber-400">${r.cpuUtilization.toFixed(1)}%</td>
         <td class="p-2 text-purple-400">${r.throughput.toFixed(3)}</td>
       </tr>

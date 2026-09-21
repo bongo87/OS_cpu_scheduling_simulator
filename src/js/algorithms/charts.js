@@ -33,7 +33,7 @@ function calculateSystemMetrics(algorithmName, ganttChart, processMetrics) {
 
   const busyTime = ganttChart
     .filter((block) => block.processId !== "IDLE")
-    .reduce((sum, block) => sum + (block.endTime - block.startTime), 0);
+    .reduce((sum, block) => sum + (block.endTime - block.startTime + 1), 0);
 
   return {
     algorithm: algorithmName,
@@ -57,18 +57,18 @@ function compressGantt(rawGantt) {
   let currentBlock = {
     processId: rawGantt[0].processId,
     startTime: rawGantt[0].time,
-    endTime: rawGantt[0].time + 1,
+    endTime: rawGantt[0].time,
   };
 
   for (let i = 1; i < rawGantt.length; i++) {
-    if (rawGantt[i].processId === currentBlock.processId) {
-      currentBlock.endTime++;
+    if (rawGantt[i].processId === currentBlock.processId && rawGantt[i].time === currentBlock.endTime + 1) {
+      currentBlock.endTime = rawGantt[i].time;
     } else {
       compressed.push(currentBlock);
       currentBlock = {
         processId: rawGantt[i].processId,
         startTime: rawGantt[i].time,
-        endTime: rawGantt[i].time + 1,
+        endTime: rawGantt[i].time,
       };
     }
   }
@@ -98,13 +98,23 @@ function computeProcessMetrics(procs) {
   });
 }
 
+// Expose functions to global scope
+window.calculateSystemMetrics = calculateSystemMetrics;
+window.compressGantt = compressGantt;
+window.computeProcessMetrics = computeProcessMetrics;
+window.renderRowGanttChart = renderRowGanttChart;
+window.renderComparisonChart = renderComparisonChart;
+
 /**
  * Renders the per-process row grid matching the reference table format:
  * [ Process ID | Priority | Arrival | Burst time | 1 | 2 | 3 ... N ]
  */
 function renderRowGanttChart(containerId, ganttChart, processes) {
   const container = document.getElementById(containerId);
-  if (!container) return;
+  if (!container) {
+    console.error(`Container ${containerId} not found`);
+    return;
+  }
 
   if (!ganttChart || ganttChart.length === 0) {
     container.innerHTML = "<p class='text-gray-400 p-2'>No simulation data available</p>";
@@ -145,7 +155,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
     // Time-unit execution cells
     for (let t = 1; t <= maxTime; t++) {
       const isActive = ganttChart.some(
-        (b) => b.processId === p.id && b.startTime <= t - 1 && b.endTime >= t
+        (b) => b.processId === p.id && b.startTime <= t && b.endTime >= t
       );
 
       if (isActive) {
@@ -166,56 +176,81 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
  */
 function renderComparisonChart(results) {
   const canvas = document.getElementById("comparisonChart");
-  if (!canvas) return;
+  if (!canvas) {
+    console.error("Comparison chart canvas not found");
+    return;
+  }
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) {
+    console.error("Could not get 2D context for comparison chart");
+    return;
+  }
 
   if (comparisonChartInstance) {
     comparisonChartInstance.destroy();
   }
 
+  if (!results || results.length === 0) {
+    console.error("No results to display in comparison chart");
+    return;
+  }
+
   const labels = results.map((r) => r.algorithm);
 
-  comparisonChartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "Avg Waiting Time",
-          data: results.map((r) => Number(r.avgWaitingTime.toFixed(2))),
-          backgroundColor: "#3b82f6",
+  try {
+    comparisonChartInstance = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Avg Waiting Time",
+            data: results.map((r) => Number(r.avgWaitingTime.toFixed(2))),
+            backgroundColor: "#3b82f6",
+          },
+          {
+            label: "Avg Turnaround Time",
+            data: results.map((r) => Number(r.avgTurnaroundTime.toFixed(2))),
+            backgroundColor: "#10b981",
+          },
+          {
+            label: "Avg Response Time",
+            data: results.map((r) => Number((r.avgResponseTime || 0).toFixed(2))),
+            backgroundColor: "#f59e0b",
+          },
+          {
+            label: "CPU Utilization (%)",
+            data: results.map((r) => Number(r.cpuUtilization.toFixed(1))),
+            backgroundColor: "#ef4444",
+          },
+          {
+            label: "Throughput",
+            data: results.map((r) => Number(r.throughput.toFixed(3))),
+            backgroundColor: "#8b5cf6",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(255, 255, 255, 0.1)" },
+            ticks: { color: "#9ca3af" },
+          },
+          x: {
+            grid: { color: "rgba(255, 255, 255, 0.1)" },
+            ticks: { color: "#9ca3af" },
+          },
         },
-        {
-          label: "Avg Turnaround Time",
-          data: results.map((r) => Number(r.avgTurnaroundTime.toFixed(2))),
-          backgroundColor: "#10b981",
-        },
-        {
-          label: "Avg Response Time",
-          data: results.map((r) => Number((r.avgResponseTime || 0).toFixed(2))),
-          backgroundColor: "#f59e0b",
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: "rgba(255, 255, 255, 0.1)" },
-          ticks: { color: "#9ca3af" },
-        },
-        x: {
-          grid: { color: "rgba(255, 255, 255, 0.1)" },
-          ticks: { color: "#9ca3af" },
+        plugins: {
+          legend: { labels: { color: "#e5e7eb" } },
         },
       },
-      plugins: {
-        legend: { labels: { color: "#e5e7eb" } },
-      },
-    },
-  });
+    });
+  } catch (error) {
+    console.error("Error creating comparison chart:", error);
+  }
 }
