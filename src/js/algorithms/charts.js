@@ -100,7 +100,8 @@ function computeProcessMetrics(procs) {
 }
 
 /**
- * Renders a row-based per-process matrix grid for the Gantt chart.
+ * Renders a row-based grid matrix matching the exact reference layout:
+ * Columns: [Process ID | Priority | Arrival | Burst time | 1 | 2 | 3 ... N]
  */
 function renderRowGanttChart(containerId, ganttChart, processes) {
   const container = document.getElementById(containerId);
@@ -112,33 +113,47 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
   }
 
   const maxTime = Math.max(...ganttChart.map((b) => b.endTime));
-  const processList = processes.map((p) => p.id).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  
+  // Sort processes naturally by ID (e.g. P1, P2, P3...)
+  const sortedProcesses = [...processes].sort((a, b) => 
+    a.id.localeCompare(b.id, undefined, { numeric: true })
+  );
 
   let html = `<div class="overflow-x-auto my-2">
-    <table class="w-full text-xs text-center border-collapse bg-slate-900 border border-slate-700">`;
+    <table class="w-full text-xs text-center border-collapse bg-white text-black border border-gray-400 font-sans">`;
 
-  // Header row displaying time steps
-  html += `<thead><tr class="bg-slate-800 text-gray-300">
-    <th class="p-2 border border-slate-700 font-semibold min-w-[80px]">Process ID</th>`;
+  // Header row matching reference image columns
+  html += `<thead><tr class="bg-sky-200 text-black border-b border-gray-400 font-bold">
+    <th class="p-1 border border-gray-400 text-left min-w-[90px]">Process ID</th>
+    <th class="p-1 border border-gray-400 min-w-[50px]">Priority</th>
+    <th class="p-1 border border-gray-400 min-w-[50px]">Arrival</th>
+    <th class="p-1 border border-gray-400 min-w-[65px]">Burst time</th>`;
+
+  // Time step columns 1 to maxTime
   for (let t = 1; t <= maxTime; t++) {
-    html += `<th class="p-1 border border-slate-700 min-w-[28px] font-mono">${t}</th>`;
+    html += `<th class="p-1 border border-gray-300 min-w-[24px] font-normal">${t}</th>`;
   }
   html += `</tr></thead><tbody>`;
 
-  // Process rows
-  processList.forEach((pId) => {
-    html += `<tr class="border-b border-slate-800">
-      <td class="p-2 font-bold border border-slate-700 text-left bg-slate-900 text-slate-200">${pId}</td>`;
+  // Process Rows
+  sortedProcesses.forEach((p) => {
+    html += `<tr class="border-b border-gray-300 hover:bg-gray-50">
+      <td class="p-1 border border-gray-400 text-left font-semibold">${p.id}</td>
+      <td class="p-1 border border-gray-400">${p.priority}</td>
+      <td class="p-1 border border-gray-400">${p.arrivalTime}</td>
+      <td class="p-1 border border-gray-400">${p.burstTime}</td>`;
 
+    // Time-unit execution cells
     for (let t = 1; t <= maxTime; t++) {
+      // Check if process p.id executed during the time slot [t-1, t]
       const isActive = ganttChart.some(
-        (b) => b.processId === pId && b.startTime <= t - 1 && b.endTime >= t
+        (b) => b.processId === p.id && b.startTime <= t - 1 && b.endTime >= t
       );
 
       if (isActive) {
-        html += `<td class="bg-yellow-400 text-slate-950 font-extrabold border border-amber-500">*</td>`;
+        html += `<td class="bg-yellow-300 text-black font-extrabold border border-gray-400">*</td>`;
       } else {
-        html += `<td class="bg-slate-900/50 border border-slate-800"></td>`;
+        html += `<td class="bg-white border border-gray-200"></td>`;
       }
     }
     html += `</tr>`;
@@ -149,7 +164,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
 }
 
 /**
- * Initializes/updates the Chart.js grouped bar comparison chart.
+ * Initializes and updates the Chart.js metric comparison chart.
  */
 function renderComparisonChart(results) {
   const canvas = document.getElementById("comparisonChart");
