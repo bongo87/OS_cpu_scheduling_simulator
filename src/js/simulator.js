@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <!-- Controls Card -->
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg space-y-4">
         <h2 class="text-lg font-bold text-white flex items-center gap-2">
-          <span>⚙️</span> Simulation Controls (Audio-Video System)
+          <span></span> Simulation Controls (Audio-Video System)
         </h2>
         
         <div>
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <!-- Generated Workload Table -->
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg">
         <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <span>📊</span> Generated Workload (Audio-Video Processes)
+          <span></span> Generated Workload (Audio-Video Processes)
         </h2>
         <div class="overflow-y-auto max-h-52 pr-1">
           <table class="w-full text-xs text-left">
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <!-- Performance Metrics Summary Table -->
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg">
         <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <span>📈</span> Performance Metrics
+          <span></span> Performance Metrics
         </h2>
         <div class="overflow-x-auto">
           <table class="w-full text-xs text-left">
@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <!-- Execution Timelines (Gantt Charts Matrix) -->
     <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg space-y-6">
       <h2 class="text-lg font-bold text-white flex items-center gap-2">
-        <span>📅</span> Execution Timelines (Gantt Charts)
+        <span></span> Execution Timelines (Gantt Charts)
       </h2>
 
       <div>
@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
     <!-- Metric Comparison Graph Canvas -->
     <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg">
       <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <span>📊</span> Metric Comparison Graph
+        <span></span> Metric Comparison Graph
       </h2>
       <div class="relative h-64 w-full">
         <canvas id="comparisonChart"></canvas>
