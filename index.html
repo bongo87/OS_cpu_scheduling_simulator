@@ -1,25 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CPU Scheduling Simulator | CMPG 324</title>
-  <link href="./dist/output.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CPU Scheduling Simulator</title>
+  
+  <!-- 1. Include Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 2. Include Chart.js for performance graphs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Tailwind Configuration (Custom colors/theme matching the dashboard style) -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0f172a',
+              card: '#1e293b',
+              accent: '#06b6d4'
+            }
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="bg-slate-900 text-white min-h-screen p-6">
-  <div class="max-w-7xl mx-auto">
-    <h1 class="text-3xl font-bold mb-6 text-cyan-400">CPU Scheduling Simulator</h1>
-    
-    <!-- UI Container for Controls, Tables, Gantt Chart, and Metric Graphs -->
-    <div id="app"></div>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased p-4 sm:p-6 lg:p-8">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <header class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">
+          CPU Scheduling <span class="text-cyan-400">Simulator</span>
+        </h1>
+        <p class="text-sm text-slate-400 mt-1">
+          Simulate, evaluate, and compare Preemptive FCFS, SRTF, and Round Robin scheduling algorithms.
+        </p>
+      </div>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> Ready
+      </span>
+    </header>
+
+    <!-- App Container dynamically injected by simulator.js -->
+    <main id="app" class="space-y-6"></main>
   </div>
 
-  <!-- JavaScript Modules -->
-  <script src="./src/js/algorithms/fcfs.js"></script>
-  <script src="./src/js/algorithms/srtf.js"></script>
-  <script src="./src/js/algorithms/roundRobin.js"></script>
-  <script src="./src/js/charts.js"></script>
-  <script src="./src/js/simulator.js"></script>
+  <!-- Include Algorithm JavaScript Files -->
+  <script src="src/js/algorithms/fcfs.js"></script>
+  <script src="src/js/algorithms/srtf.js"></script>
+  <script src="src/js/algorithms/roundRobin.js"></script>
+  <script src="src/js/charts.js"></script>
+  <script src="src/js/simulator.js"></script>
 </body>
 </html>
