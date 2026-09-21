@@ -2,12 +2,11 @@
  * src/js/charts.js
  */
 
-// Global Chart instance tracker to allow clean re-renders
+// Track global Chart instance for updates
 let comparisonChartInstance = null;
 
 /**
  * Shared System Metrics Calculator
- * Aggregates individual process metrics into system-wide averages.
  */
 function calculateSystemMetrics(algorithmName, ganttChart, processMetrics) {
   const totalProcesses = processMetrics.length;
@@ -49,11 +48,11 @@ function calculateSystemMetrics(algorithmName, ganttChart, processMetrics) {
 }
 
 /**
- * Compresses sequential time-step blocks into aggregated start/end intervals.
+ * Compresses sequential raw time steps into block intervals
  */
 function compressGantt(rawGantt) {
   const compressed = [];
-  if (rawGantt.length === 0) return compressed;
+  if (!rawGantt || rawGantt.length === 0) return compressed;
 
   let currentBlock = {
     processId: rawGantt[0].processId,
@@ -78,7 +77,7 @@ function compressGantt(rawGantt) {
 }
 
 /**
- * Computes individual process metrics (TAT, WT, RT).
+ * Computes turnaround time, waiting time, and response time
  */
 function computeProcessMetrics(procs) {
   return procs.map((p) => {
@@ -100,8 +99,8 @@ function computeProcessMetrics(procs) {
 }
 
 /**
- * Renders a row-based grid matrix matching the exact reference layout:
- * Columns: [Process ID | Priority | Arrival | Burst time | 1 | 2 | 3 ... N]
+ * Renders the per-process row grid matching the reference table format:
+ * [ Process ID | Priority | Arrival | Burst time | 1 | 2 | 3 ... N ]
  */
 function renderRowGanttChart(containerId, ganttChart, processes) {
   const container = document.getElementById(containerId);
@@ -114,7 +113,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
 
   const maxTime = Math.max(...ganttChart.map((b) => b.endTime));
   
-  // Sort processes naturally by ID (e.g. P1, P2, P3...)
+  // Sort processes naturally (P1, P2, P3...)
   const sortedProcesses = [...processes].sort((a, b) => 
     a.id.localeCompare(b.id, undefined, { numeric: true })
   );
@@ -145,7 +144,6 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
 
     // Time-unit execution cells
     for (let t = 1; t <= maxTime; t++) {
-      // Check if process p.id executed during the time slot [t-1, t]
       const isActive = ganttChart.some(
         (b) => b.processId === p.id && b.startTime <= t - 1 && b.endTime >= t
       );
@@ -164,7 +162,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
 }
 
 /**
- * Initializes and updates the Chart.js metric comparison chart.
+ * Initializes and updates the Chart.js metric comparison graph
  */
 function renderComparisonChart(results) {
   const canvas = document.getElementById("comparisonChart");
