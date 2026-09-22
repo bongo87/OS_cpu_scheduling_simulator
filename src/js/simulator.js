@@ -18,6 +18,9 @@ document.addEventListener("DOMContentLoaded", () => {
         <h2 class="text-lg font-bold text-white flex items-center gap-2">
           <span></span> Simulation Controls (Audio-Video System)
         </h2>
+        <div class="text-xs text-cyan-400 bg-cyan-900/20 p-2 rounded border border-cyan-700/50">
+          <strong>Note:</strong> Higher priority number = Higher priority (5 > 4 > 3 > 2 > 1). When arrival times are equal, higher priority processes run first.
+        </div>
         
         <div>
           <label class="block text-xs text-slate-400 mb-1">PROCESS COUNT</label>

@@ -1,7 +1,7 @@
 /**
  * Round Robin (RR) with Priority Levels
  * System-wide time quantum applies to ALL processes.
- * Higher priority processes run first; quantum applies among processes of EQUAL priority.
+ * Higher priority processes run first (higher number = higher priority); quantum applies among processes of EQUAL priority.
  * No process runs for more than the quantum time before being preempted.
  */
 function runRoundRobin(processes, quantum = 2) {
@@ -33,7 +33,7 @@ function runRoundRobin(processes, quantum = 2) {
       continue;
     }
 
-    const highestPriority = Math.min(...readyPool.map((p) => p.priority));
+    const highestPriority = Math.max(...readyPool.map((p) => p.priority));
     const highestPriorityPool = readyPool.filter((p) => p.priority === highestPriority);
 
     // Check if we need to switch processes:

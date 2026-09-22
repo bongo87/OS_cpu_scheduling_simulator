@@ -1,6 +1,6 @@
 /**
  * Preemptive First-Come, First-Served (FCFS) with Priority Levels
- * Lower numerical value = Higher Priority (1 > 2 > 3).
+ * Higher numerical value = Higher Priority (5 > 4 > 3 > 2 > 1).
  */
 function runFCFS(processes) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
@@ -26,10 +26,10 @@ function runFCFS(processes) {
       continue;
     }
 
-    // 1st Priority: Priority value (asc) | 2nd Priority: Arrival time (asc)
+    // 1st Priority: Priority value (desc) | 2nd Priority: Arrival time (asc)
     readyPool.sort(
       (a, b) =>
-        a.priority - b.priority ||
+        b.priority - a.priority ||
         a.arrivalTime - b.arrivalTime ||
         a.id.localeCompare(b.id)
     );
