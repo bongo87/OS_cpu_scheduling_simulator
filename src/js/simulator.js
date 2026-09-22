@@ -133,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
     currentProcesses = [];
 
-    let currentArrivalTime = 0;
+    let currentArrivalTime = 1;
     for (let i = 1; i <= count; i++) {
       // Incremental arrival time with random increments
       const arrivalIncrement = Math.floor(Math.random() * 3); // 0, 1, or 2
