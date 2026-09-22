@@ -1,6 +1,8 @@
 /**
  * Round Robin (RR) with Priority Levels
+ * System-wide time quantum applies to ALL processes.
  * Higher priority processes run first; quantum applies among processes of EQUAL priority.
+ * No process runs for more than the quantum time before being preempted.
  */
 function runRoundRobin(processes, quantum = 2) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
@@ -34,6 +36,11 @@ function runRoundRobin(processes, quantum = 2) {
     const highestPriority = Math.min(...readyPool.map((p) => p.priority));
     const highestPriorityPool = readyPool.filter((p) => p.priority === highestPriority);
 
+    // Check if we need to switch processes:
+    // 1. No active process
+    // 2. Current process completed
+    // 3. Higher priority process arrived
+    // 4. Current process used up its quantum time
     if (
       !activeProc ||
       activeProc.remainingTime === 0 ||
@@ -41,9 +48,11 @@ function runRoundRobin(processes, quantum = 2) {
       currentQuantumUsed >= quantum
     ) {
       if (activeProc && activeProc.priority === highestPriority && activeProc.remainingTime > 0 && currentQuantumUsed >= quantum) {
+        // Rotate to next process in same priority level (Round Robin behavior)
         const index = highestPriorityPool.indexOf(activeProc);
         activeProc = highestPriorityPool[(index + 1) % highestPriorityPool.length];
       } else {
+        // Select first process in highest priority pool
         activeProc = highestPriorityPool[0];
       }
       currentQuantumUsed = 0;

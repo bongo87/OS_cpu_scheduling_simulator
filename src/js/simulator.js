@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">TIME QUANTUM (RR)</label>
+          <label class="block text-xs text-slate-400 mb-1">TIME QUANTUM (RR - System-Wide)</label>
           <div id="quantumDisplay" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
             Auto-generated (random)
           </div>
@@ -59,8 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-l">PID</th>
                 <th class="p-2">ARRIVAL TIME</th>
                 <th class="p-2">BURST TIME</th>
-                <th class="p-2">PRIORITY</th>
-                <th class="p-2 rounded-r">TIME QUANTUM</th>
+                <th class="p-2 rounded-r">PRIORITY</th>
               </tr>
             </thead>
             <tbody id="workloadTableBody" class="divide-y divide-slate-700/50 text-slate-300">
@@ -145,15 +144,14 @@ document.addEventListener("DOMContentLoaded", () => {
         arrivalTime: currentArrivalTime,
         burstTime: Math.floor(Math.random() * 10) + 1, // Random burst time 1-10
         priority: Math.floor(Math.random() * 5) + 1, // Random priority 1-5
-        timeQuantum: Math.floor(Math.random() * 5) + 2, // Random time quantum 2-6
       });
     }
 
-    // Generate a random time quantum for Round Robin simulation
+    // Generate a random time quantum for Round Robin simulation (system-wide)
     const randomQuantum = Math.floor(Math.random() * 5) + 2; // 2-6
     const quantumDisplay = document.getElementById("quantumDisplay");
     if (quantumDisplay) {
-      quantumDisplay.textContent = `Q=${randomQuantum} (random)`;
+      quantumDisplay.textContent = `Q=${randomQuantum} (applies to all processes)`;
     }
 
     // Render generated processes to workload table
@@ -166,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
         <td class="p-2">${p.arrivalTime}</td>
         <td class="p-2">${p.burstTime}</td>
         <td class="p-2"><span class="px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-200">Priority ${p.priority}</span></td>
-        <td class="p-2"><span class="px-2 py-0.5 rounded text-xs bg-purple-700 text-purple-200">Q=${p.timeQuantum}</span></td>
       </tr>
     `
       )
