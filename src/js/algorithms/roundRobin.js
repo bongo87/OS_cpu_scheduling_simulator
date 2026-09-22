@@ -39,12 +39,12 @@ function runRoundRobin(processes, quantum = 2) {
     // Check if we need to switch processes:
     // 1. No active process
     // 2. Current process completed
-    // 3. Higher priority process arrived
+    // 3. Higher priority process arrived (lower priority number < highest priority)
     // 4. Current process used up its quantum time
     if (
       !activeProc ||
       activeProc.remainingTime === 0 ||
-      activeProc.priority > highestPriority ||
+      activeProc.priority < highestPriority ||
       currentQuantumUsed >= quantum
     ) {
       if (activeProc && activeProc.priority === highestPriority && activeProc.remainingTime > 0 && currentQuantumUsed >= quantum) {
