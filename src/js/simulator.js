@@ -14,17 +14,17 @@ document.addEventListener("DOMContentLoaded", () => {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
       <!-- Controls Card -->
-      <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg space-y-4">
-        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+      <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
+        <h2 class="text-lg font-bold text-[#211B2D] flex items-center gap-2">
           <span></span> Simulation Controls (Audio-Video System)
         </h2>
-        <div class="text-xs text-cyan-400 bg-cyan-900/20 p-2 rounded border border-cyan-700/50">
+        <div class="text-xs text-[#6D28D9] bg-cyan-900/20 p-2 rounded border border-cyan-700/50">
           <strong>Note:</strong> Higher priority number = Higher priority (5 > 4 > 3 > 2 > 1). When arrival times are equal, higher priority processes run first.
         </div>
         
         <div>
-          <label class="block text-xs text-slate-400 mb-1">PROCESS COUNT</label>
-          <select id="processCountSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+          <label class="block text-xs text-[#756D80] mb-1">PROCESS COUNT</label>
+          <select id="processCountSelect" class="w-full bg-[#F8F7FC] border border-[#E4DDF2] rounded-lg px-3 py-2 text-sm text-[#40384A] focus:outline-none focus:border-[#6D28D9]">
             <option value="10" selected>10 Processes</option>
             <option value="20">20 Processes</option>
             <option value="30">30 Processes</option>
@@ -34,30 +34,30 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">TIME QUANTUM (RR - System-Wide)</label>
-          <div id="quantumDisplay" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
+          <label class="block text-xs text-[#756D80] mb-1">TIME QUANTUM (RR - System-Wide)</label>
+          <div id="quantumDisplay" class="w-full bg-[#F8F7FC] border border-[#E4DDF2] rounded-lg px-3 py-2 text-sm text-[#40384A]">
             Auto-generated (random)
           </div>
         </div>
 
         <div class="flex gap-3 pt-2">
-          <button id="btnGenerate" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors">
+          <button id="btnGenerate" class="flex-1 bg-[#F3EEFF] hover:bg-slate-600 text-[#211B2D] font-medium text-sm py-2 px-4 rounded-lg transition-colors">
             Generate Workload
           </button>
-          <button id="btnRun" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm py-2 px-4 rounded-lg transition-colors">
+          <button id="btnRun" class="flex-1 bg-[#6D28D9] hover:bg-cyan-400 text-slate-950 font-bold text-sm py-2 px-4 rounded-lg transition-colors">
             Run Simulation
           </button>
         </div>
       </div>
 
       <!-- Generated Workload Table -->
-      <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg">
-        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+      <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
+        <h2 class="text-lg font-bold text-[#211B2D] mb-3 flex items-center gap-2">
           <span></span> Generated Workload (Audio-Video Processes)
         </h2>
         <div class="overflow-y-auto max-h-52 pr-1">
           <table class="w-full text-xs text-left">
-            <thead class="bg-slate-900/60 text-slate-400">
+            <thead class="bg-[#F8F7FC]/60 text-[#756D80]">
               <tr>
                 <th class="p-2 rounded-l">PID</th>
                 <th class="p-2">ARRIVAL TIME</th>
@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-r">PRIORITY</th>
               </tr>
             </thead>
-            <tbody id="workloadTableBody" class="divide-y divide-slate-700/50 text-slate-300">
+            <tbody id="workloadTableBody" class="divide-y divide-slate-700/50 text-[#756D80]">
               <!-- Dynamically populated -->
             </tbody>
           </table>
@@ -73,13 +73,13 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
 
       <!-- Performance Metrics Summary Table -->
-      <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg">
-        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+      <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
+        <h2 class="text-lg font-bold text-[#211B2D] mb-3 flex items-center gap-2">
           <span></span> Performance Metrics
         </h2>
         <div class="overflow-x-auto">
           <table class="w-full text-xs text-left">
-            <thead class="bg-slate-900/60 text-slate-400">
+            <thead class="bg-[#F8F7FC]/60 text-[#756D80]">
               <tr>
                 <th class="p-2 rounded-l">ALGORITHM</th>
                 <th class="p-2">AVG WAIT</th>
@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-r">THROUGHPUT</th>
               </tr>
             </thead>
-            <tbody id="metricsTableBody" class="divide-y divide-slate-700/50 text-slate-300 font-mono">
+            <tbody id="metricsTableBody" class="divide-y divide-slate-700/50 text-[#756D80] font-mono">
               <tr><td colspan="6" class="p-3 text-center text-slate-500">Run simulation to view metrics</td></tr>
             </tbody>
           </table>
@@ -99,30 +99,30 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
 
     <!-- Execution Timelines (Gantt Charts Matrix) -->
-    <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg space-y-6">
-      <h2 class="text-lg font-bold text-white flex items-center gap-2">
+    <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-6">
+      <h2 class="text-lg font-bold text-[#211B2D] flex items-center gap-2">
         <span></span> Execution Timelines (Gantt Charts)
       </h2>
 
       <div>
-        <h3 class="text-sm font-semibold text-slate-300 mb-2">Preemptive FCFS (Priority)</h3>
+        <h3 class="text-sm font-semibold text-[#756D80] mb-2">Preemptive FCFS (Priority)</h3>
         <div id="fcfsGanttContainer"></div>
       </div>
 
       <div>
-        <h3 class="text-sm font-semibold text-slate-300 mb-2">SRTF (Priority)</h3>
+        <h3 class="text-sm font-semibold text-[#756D80] mb-2">SRTF (Priority)</h3>
         <div id="srtfGanttContainer"></div>
       </div>
 
       <div>
-        <h3 class="text-sm font-semibold text-slate-300 mb-2">Round Robin (Priority)</h3>
+        <h3 class="text-sm font-semibold text-[#756D80] mb-2">Round Robin (Priority)</h3>
         <div id="rrGanttContainer"></div>
       </div>
     </div>
 
     <!-- Metric Comparison Graph Canvas -->
-    <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 shadow-lg">
-      <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+    <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
+      <h2 class="text-lg font-bold text-[#211B2D] mb-4 flex items-center gap-2">
         <span></span> Metric Comparison Graph
       </h2>
       <div class="relative h-64 w-full">
@@ -162,11 +162,11 @@ document.addEventListener("DOMContentLoaded", () => {
     tableBody.innerHTML = currentProcesses
       .map(
         (p) => `
-      <tr class="hover:bg-slate-700/30">
-        <td class="p-2 font-bold text-cyan-400">${p.id}</td>
+      <tr class="hover:bg-[#F3EEFF]/30">
+        <td class="p-2 font-bold text-[#6D28D9]">${p.id}</td>
         <td class="p-2">${p.arrivalTime}</td>
         <td class="p-2">${p.burstTime}</td>
-        <td class="p-2"><span class="px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-200">Priority ${p.priority}</span></td>
+        <td class="p-2"><span class="px-2 py-0.5 rounded text-xs bg-[#F3EEFF] text-[#40384A]">Priority ${p.priority}</span></td>
       </tr>
     `
       )
@@ -197,9 +197,9 @@ document.addEventListener("DOMContentLoaded", () => {
     metricsBody.innerHTML = results
       .map(
         (r) => `
-      <tr class="hover:bg-slate-700/30">
-        <td class="p-2 font-bold text-white">${r.algorithm}</td>
-        <td class="p-2 text-cyan-400">${r.avgWaitingTime.toFixed(2)}</td>
+      <tr class="hover:bg-[#F3EEFF]/30">
+        <td class="p-2 font-bold text-[#211B2D]">${r.algorithm}</td>
+        <td class="p-2 text-[#6D28D9]">${r.avgWaitingTime.toFixed(2)}</td>
         <td class="p-2 text-emerald-400">${r.avgTurnaroundTime.toFixed(2)}</td>
         <td class="p-2 text-pink-400">${(r.avgResponseTime || 0).toFixed(2)}</td>
         <td class="p-2 text-amber-400">${r.cpuUtilization.toFixed(1)}%</td>
@@ -231,3 +231,4 @@ document.addEventListener("DOMContentLoaded", () => {
   generateWorkload();
   executeSimulation();
 });
+

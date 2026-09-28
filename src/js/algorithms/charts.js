@@ -129,10 +129,10 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
   );
 
   let html = `<div class="overflow-x-auto my-2">
-    <table class="w-full text-xs text-center border-collapse bg-white text-black border border-gray-400 font-sans">`;
+    <table class="w-full text-xs text-center border-collapse bg-white text-[#211B2D] border border-[#E4DDF2] font-sans">`;
 
   // Header row matching reference image columns
-  html += `<thead><tr class="bg-sky-200 text-black border-b border-gray-400 font-bold">
+  html += `<thead><tr class="bg-[#F3EEFF] text-[#4C1D95] border-b border-gray-400 font-bold">
     <th class="p-1 border border-gray-400 text-left min-w-[90px]">Process ID</th>
     <th class="p-1 border border-gray-400 min-w-[50px]">Priority</th>
     <th class="p-1 border border-gray-400 min-w-[50px]">Arrival</th>
@@ -159,7 +159,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
       );
 
       if (isActive) {
-        html += `<td class="bg-yellow-300 text-black font-extrabold border border-gray-400">*</td>`;
+        html += `<td class="bg-[#7C3AED] text-white font-extrabold border border-gray-400">*</td>`;
       } else {
         html += `<td class="bg-white border border-gray-200"></td>`;
       }
@@ -207,27 +207,27 @@ function renderComparisonChart(results) {
           {
             label: "Avg Waiting Time",
             data: results.map((r) => Number(r.avgWaitingTime.toFixed(2))),
-            backgroundColor: "#3b82f6",
+            backgroundColor: "#7C3AED",
           },
           {
             label: "Avg Turnaround Time",
             data: results.map((r) => Number(r.avgTurnaroundTime.toFixed(2))),
-            backgroundColor: "#10b981",
+            backgroundColor: "#D4A017",
           },
           {
             label: "Avg Response Time",
             data: results.map((r) => Number((r.avgResponseTime || 0).toFixed(2))),
-            backgroundColor: "#f59e0b",
+            backgroundColor: "#059669",
           },
           {
             label: "CPU Utilization (%)",
             data: results.map((r) => Number(r.cpuUtilization.toFixed(1))),
-            backgroundColor: "#ef4444",
+            backgroundColor: "#EA580C",
           },
           {
             label: "Throughput",
             data: results.map((r) => Number(r.throughput.toFixed(3))),
-            backgroundColor: "#8b5cf6",
+            backgroundColor: "#2563EB",
           },
         ],
       },
@@ -237,16 +237,16 @@ function renderComparisonChart(results) {
         scales: {
           y: {
             beginAtZero: true,
-            grid: { color: "rgba(255, 255, 255, 0.1)" },
-            ticks: { color: "#9ca3af" },
+            grid: { color: "rgba(109, 40, 217, 0.12)" },
+            ticks: { color: "#756D80" },
           },
           x: {
-            grid: { color: "rgba(255, 255, 255, 0.1)" },
-            ticks: { color: "#9ca3af" },
+            grid: { color: "rgba(109, 40, 217, 0.12)" },
+            ticks: { color: "#756D80" },
           },
         },
         plugins: {
-          legend: { labels: { color: "#e5e7eb" } },
+          legend: { labels: { color: "#40384A" } },
         },
       },
     });
@@ -254,3 +254,4 @@ function renderComparisonChart(results) {
     console.error("Error creating comparison chart:", error);
   }
 }
+
