@@ -1,8 +1,11 @@
  
-
 /**
  * src/js/simulator.js
  */
+
+// Keep track of active Chart.js instances to allow clean re-rendering
+let barChartInstance = null;
+let pieChartInstance = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   let currentProcesses = [];
@@ -17,8 +20,8 @@ document.addEventListener("DOMContentLoaded", () => {
       
       <!-- Controls Card -->
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
-        <h2 class="text-lg font-bold text-[#211B2D] flex items-center gap-2">
-          <span></span> Simulation Controls (Audio-Video System)
+        <h2 class="text-lg font-bold text-[#211B2D]">
+          Simulation Controls (Audio-Video System)
         </h2>
         <div class="text-xs text-[#6D28D9] bg-cyan-900/20 p-2 rounded border border-cyan-700/50">
           <strong>Note:</strong> Higher priority number = Higher priority (5 > 4 > 3 > 2 > 1). When arrival times are equal, higher priority processes run first.
@@ -54,8 +57,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       <!-- Generated Workload Table (Interactive Inputs Enabled) -->
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
-        <h2 class="text-lg font-bold text-[#211B2D] mb-3 flex items-center gap-2">
-          <span></span> Workload Configuration (Audio-Video Processes)
+        <h2 class="text-lg font-bold text-[#211B2D] mb-3">
+          Workload Configuration (Audio-Video Processes)
         </h2>
         <div class="overflow-y-auto max-h-52 pr-1">
           <table class="w-full text-xs text-left">
@@ -76,8 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       <!-- Performance Metrics Summary Table -->
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
-        <h2 class="text-lg font-bold text-[#211B2D] mb-3 flex items-center gap-2">
-          <span></span> Performance Metrics
+        <h2 class="text-lg font-bold text-[#211B2D] mb-3">
+          Performance Metrics
         </h2>
         <div class="overflow-x-auto">
           <table class="w-full text-xs text-left">
@@ -102,8 +105,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     <!-- Execution Timelines (Gantt Charts Matrix) -->
     <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-6">
-      <h2 class="text-lg font-bold text-[#211B2D] flex items-center gap-2">
-        <span></span> Execution Timelines (Gantt Charts)
+      <h2 class="text-lg font-bold text-[#211B2D]">
+        Execution Timelines (Gantt Charts)
       </h2>
 
       <div>
@@ -122,18 +125,33 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
 
-    <!-- Metric Comparison Graph Canvas -->
-    <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
-      <h2 class="text-lg font-bold text-[#211B2D] mb-4 flex items-center gap-2">
-        <span></span> Metric Comparison Graph
+    <!-- Metric Comparison Visualizations Grid (Bar & Pie Charts) -->
+    <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
+      <h2 class="text-lg font-bold text-[#211B2D]">
+        Metric Comparison Visualizations
       </h2>
-      <div class="relative h-64 w-full">
-        <canvas id="comparisonChart"></canvas>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Chart 1: Bar Chart -->
+        <div class="bg-[#F8F7FC] p-4 rounded-lg border border-[#E4DDF2] flex flex-col items-center">
+          <h3 class="text-xs font-bold text-[#756D80] uppercase tracking-wider mb-2">Average Times Comparison</h3>
+          <div class="relative h-64 w-full">
+            <canvas id="comparisonBarChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Pie Chart -->
+        <div class="bg-[#F8F7FC] p-4 rounded-lg border border-[#E4DDF2] flex flex-col items-center">
+          <h3 class="text-xs font-bold text-[#756D80] uppercase tracking-wider mb-2">Total Waiting Time Distribution</h3>
+          <div class="relative h-64 w-full">
+            <canvas id="comparisonPieChart"></canvas>
+          </div>
+        </div>
       </div>
     </div>
   `;
 
-  // 2. Random Workload Generator with Interactive Field Binding
+  // 2. Random Workload Generator
   function generateWorkload() {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
     currentProcesses = [];
@@ -160,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Render interactive workload table inputs
     renderWorkloadTable();
-    
+
     return randomQuantum;
   }
 
@@ -224,7 +242,108 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 3. Main Controller Runner
+  // 3. Render Comparison Charts (Bar Chart & Pie Chart)
+  function renderComparisonChart(results) {
+    const labels = results.map((r) => r.algorithm);
+    const avgWaitTimes = results.map((r) => r.avgWaitingTime);
+    const avgTurnaroundTimes = results.map((r) => r.avgTurnaroundTime);
+    const avgResponseTimes = results.map((r) => r.avgResponseTime || 0);
+
+    // --- 1. BAR CHART: Average Times Comparison ---
+    const ctxBar = document.getElementById("comparisonBarChart");
+    if (ctxBar) {
+      if (barChartInstance) barChartInstance.destroy();
+
+      barChartInstance = new Chart(ctxBar, {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Avg Wait Time (s)",
+              data: avgWaitTimes,
+              backgroundColor: "rgba(109, 40, 217, 0.8)",
+            },
+            {
+              label: "Avg Turnaround Time (s)",
+              data: avgTurnaroundTimes,
+              backgroundColor: "rgba(5, 150, 105, 0.8)",
+            },
+            {
+              label: "Avg Response Time (s)",
+              data: avgResponseTimes,
+              backgroundColor: "rgba(219, 39, 119, 0.8)",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } },
+          },
+          scales: {
+            y: { beginAtZero: true, grid: { color: "rgba(228, 221, 242, 0.5)" } },
+            x: { grid: { display: false } },
+          },
+        },
+      });
+    }
+
+    // --- 2. PIE CHART: Total Waiting Time Share with Distinct Palette ---
+    const ctxPie = document.getElementById("comparisonPieChart");
+    if (ctxPie) {
+      if (pieChartInstance) pieChartInstance.destroy();
+
+      // Distinct color palette for Pie Chart algorithm slices
+      const pieFillColors = [
+        "rgba(109, 40, 217, 0.85)",  // Purple (Preemptive FCFS)
+        "rgba(14, 165, 233, 0.85)",  // Sky Blue (SRTF)
+        "rgba(245, 158, 11, 0.85)",  // Amber/Gold (Round Robin)
+      ];
+
+      const pieBorderColors = [
+        "#6D28D9",
+        "#0EA5E9",
+        "#F59E0B",
+      ];
+
+      pieChartInstance = new Chart(ctxPie, {
+        type: "pie",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Avg Waiting Time Share",
+              data: avgWaitTimes,
+              backgroundColor: pieFillColors,
+              borderColor: pieBorderColors,
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
+                  const value = context.raw;
+                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                  return `${context.label}: ${value.toFixed(2)}s (${percentage}%)`;
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+  }
+
+  // 4. Main Controller Runner
   function executeSimulation() {
     // Collect updated manual input values prior to execution
     document.querySelectorAll(".process-input").forEach((input) => {
@@ -271,15 +390,17 @@ document.addEventListener("DOMContentLoaded", () => {
       .join("");
 
     // Render Process-Row Grid Gantt Charts
-    renderRowGanttChart("fcfsGanttContainer", fcfsResult.ganttChart, currentProcesses);
-    renderRowGanttChart("srtfGanttContainer", srtfResult.ganttChart, currentProcesses);
-    renderRowGanttChart("rrGanttContainer", rrResult.ganttChart, currentProcesses);
+    if (typeof renderRowGanttChart === "function") {
+      renderRowGanttChart("fcfsGanttContainer", fcfsResult.ganttChart, currentProcesses);
+      renderRowGanttChart("srtfGanttContainer", srtfResult.ganttChart, currentProcesses);
+      renderRowGanttChart("rrGanttContainer", rrResult.ganttChart, currentProcesses);
+    }
 
-    // Render Canvas Bar Chart
+    // Render Canvas Charts (Bar & Pie)
     renderComparisonChart(results);
   }
 
-  // 4. Attach Event Listeners
+  // 5. Attach Event Listeners
   document.getElementById("btnGenerate").addEventListener("click", () => {
     generateWorkload();
     executeSimulation();
@@ -289,10 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
     executeSimulation();
   });
 
-  // Initial setup on load
+  // Initial setup on page load
   generateWorkload();
   executeSimulation();
 });
-
-
-
