@@ -1,3 +1,5 @@
+ 
+
 /**
  * src/js/simulator.js
  */
@@ -41,19 +43,19 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <div class="flex gap-3 pt-2">
-          <button id="btnGenerate" class="flex-1 bg-[#F3EEFF] hover:bg-slate-600 text-[#211B2D] font-medium text-sm py-2 px-4 rounded-lg transition-colors">
+          <button id="btnGenerate" class="flex-1 bg-[#F3EEFF] hover:bg-slate-200 text-[#211B2D] font-medium text-sm py-2 px-4 rounded-lg transition-colors border border-[#E4DDF2]">
             Generate Workload
           </button>
-          <button id="btnRun" class="flex-1 bg-[#6D28D9] hover:bg-cyan-400 text-slate-950 font-bold text-sm py-2 px-4 rounded-lg transition-colors">
+          <button id="btnRun" class="flex-1 bg-[#6D28D9] hover:bg-[#5b21b6] text-white font-bold text-sm py-2 px-4 rounded-lg transition-colors shadow">
             Run Simulation
           </button>
         </div>
       </div>
 
-      <!-- Generated Workload Table -->
+      <!-- Generated Workload Table (Interactive Inputs Enabled) -->
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
         <h2 class="text-lg font-bold text-[#211B2D] mb-3 flex items-center gap-2">
-          <span></span> Generated Workload (Audio-Video Processes)
+          <span></span> Workload Configuration (Audio-Video Processes)
         </h2>
         <div class="overflow-y-auto max-h-52 pr-1">
           <table class="w-full text-xs text-left">
@@ -65,8 +67,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-r">PRIORITY</th>
               </tr>
             </thead>
-            <tbody id="workloadTableBody" class="divide-y divide-slate-700/50 text-[#756D80]">
-              <!-- Dynamically populated -->
+            <tbody id="workloadTableBody" class="divide-y divide-slate-200 text-[#756D80]">
+              <!-- Dynamically populated with interactive input fields -->
             </tbody>
           </table>
         </div>
@@ -89,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-r">THROUGHPUT</th>
               </tr>
             </thead>
-            <tbody id="metricsTableBody" class="divide-y divide-slate-700/50 text-[#756D80] font-mono">
+            <tbody id="metricsTableBody" class="divide-y divide-slate-200 text-[#756D80] font-mono">
               <tr><td colspan="6" class="p-3 text-center text-slate-500">Run simulation to view metrics</td></tr>
             </tbody>
           </table>
@@ -131,14 +133,13 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
   `;
 
-  // 2. Random Workload Generator Helper
+  // 2. Random Workload Generator with Interactive Field Binding
   function generateWorkload() {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
     currentProcesses = [];
 
     let currentArrivalTime = 1;
     for (let i = 1; i <= count; i++) {
-      // Incremental arrival time with random increments
       const arrivalIncrement = Math.floor(Math.random() * 3); // 0, 1, or 2
       currentArrivalTime += arrivalIncrement;
 
@@ -150,42 +151,102 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Generate a random time quantum for Round Robin simulation (system-wide)
+    // Generate random time quantum for Round Robin
     const randomQuantum = Math.floor(Math.random() * 5) + 2; // 2-6
     const quantumDisplay = document.getElementById("quantumDisplay");
     if (quantumDisplay) {
       quantumDisplay.textContent = `Q=${randomQuantum} (applies to all processes)`;
     }
 
-    // Render generated processes to workload table
-    const tableBody = document.getElementById("workloadTableBody");
-    tableBody.innerHTML = currentProcesses
-      .map(
-        (p) => `
-      <tr class="hover:bg-[#F3EEFF]/30">
-        <td class="p-2 font-bold text-[#6D28D9]">${p.id}</td>
-        <td class="p-2">${p.arrivalTime}</td>
-        <td class="p-2">${p.burstTime}</td>
-        <td class="p-2"><span class="px-2 py-0.5 rounded text-xs bg-[#F3EEFF] text-[#40384A]">Priority ${p.priority}</span></td>
-      </tr>
-    `
-      )
-      .join("");
+    // Render interactive workload table inputs
+    renderWorkloadTable();
     
     return randomQuantum;
   }
 
-  // 3. Main Controller Runner Hook
-  function executeSimulation() {
-    // Generate workload with random quantum
-    const quantum = generateWorkload();
+  // Helper to render interactive table inputs
+  function renderWorkloadTable() {
+    const tableBody = document.getElementById("workloadTableBody");
+    if (!tableBody) return;
 
-    // Deep clone process list to avoid mutation across algorithm executions
+    tableBody.innerHTML = currentProcesses
+      .map(
+        (p, index) => `
+      <tr class="hover:bg-[#F3EEFF]/30">
+        <td class="p-2 font-bold text-[#6D28D9]">${p.id}</td>
+        <td class="p-2">
+          <input 
+            type="number" 
+            min="0" 
+            value="${p.arrivalTime}" 
+            data-index="${index}" 
+            data-field="arrivalTime"
+            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]"
+          />
+        </td>
+        <td class="p-2">
+          <input 
+            type="number" 
+            min="1" 
+            value="${p.burstTime}" 
+            data-index="${index}" 
+            data-field="burstTime"
+            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]"
+          />
+        </td>
+        <td class="p-2">
+          <input 
+            type="number" 
+            min="1" 
+            max="5" 
+            value="${p.priority}" 
+            data-index="${index}" 
+            data-field="priority"
+            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]"
+          />
+        </td>
+      </tr>
+    `
+      )
+      .join("");
+
+    // Event listener to sync live changes back to currentProcesses state array
+    document.querySelectorAll(".process-input").forEach((input) => {
+      input.addEventListener("input", (e) => {
+        const index = parseInt(e.target.getAttribute("data-index"), 10);
+        const field = e.target.getAttribute("data-field");
+        const val = parseInt(e.target.value, 10) || 0;
+
+        if (currentProcesses[index]) {
+          currentProcesses[index][field] = val;
+        }
+      });
+    });
+  }
+
+  // 3. Main Controller Runner
+  function executeSimulation() {
+    // Collect updated manual input values prior to execution
+    document.querySelectorAll(".process-input").forEach((input) => {
+      const index = parseInt(input.getAttribute("data-index"), 10);
+      const field = input.getAttribute("data-field");
+      const val = parseInt(input.value, 10) || 0;
+      if (currentProcesses[index]) {
+        currentProcesses[index][field] = val;
+      }
+    });
+
+    // Extract current Quantum
+    const quantumDisplay = document.getElementById("quantumDisplay");
+    const quantumMatch = quantumDisplay ? quantumDisplay.textContent.match(/\d+/) : null;
+    const quantum = quantumMatch ? parseInt(quantumMatch[0], 10) : 2;
+
+    // Deep clone process list to avoid mutations during algorithm execution
     const procsFcfs = JSON.parse(JSON.stringify(currentProcesses));
     const procsSrtf = JSON.parse(JSON.stringify(currentProcesses));
     const procsRr = JSON.parse(JSON.stringify(currentProcesses));
 
-    // Execute algorithms (Ensure fcfs.js, srtf.js, roundRobin.js expose these functions)
+    // Execute scheduling algorithms
     const fcfsResult = typeof runFCFS === "function" ? runFCFS(procsFcfs) : { algorithm: "Preemptive FCFS", ganttChart: [], avgWaitingTime: 0, avgTurnaroundTime: 0, cpuUtilization: 0, throughput: 0 };
     const srtfResult = typeof runSRTF === "function" ? runSRTF(procsSrtf) : { algorithm: "SRTF", ganttChart: [], avgWaitingTime: 0, avgTurnaroundTime: 0, cpuUtilization: 0, throughput: 0 };
     const rrResult = typeof runRoundRobin === "function" ? runRoundRobin(procsRr, quantum) : { algorithm: `Round Robin (Q=${quantum})`, ganttChart: [], avgWaitingTime: 0, avgTurnaroundTime: 0, cpuUtilization: 0, throughput: 0 };
@@ -200,10 +261,10 @@ document.addEventListener("DOMContentLoaded", () => {
       <tr class="hover:bg-[#F3EEFF]/30">
         <td class="p-2 font-bold text-[#211B2D]">${r.algorithm}</td>
         <td class="p-2 text-[#6D28D9]">${r.avgWaitingTime.toFixed(2)}</td>
-        <td class="p-2 text-emerald-400">${r.avgTurnaroundTime.toFixed(2)}</td>
-        <td class="p-2 text-pink-400">${(r.avgResponseTime || 0).toFixed(2)}</td>
-        <td class="p-2 text-amber-400">${r.cpuUtilization.toFixed(1)}%</td>
-        <td class="p-2 text-purple-400">${r.throughput.toFixed(3)}</td>
+        <td class="p-2 text-emerald-600">${r.avgTurnaroundTime.toFixed(2)}</td>
+        <td class="p-2 text-pink-600">${(r.avgResponseTime || 0).toFixed(2)}</td>
+        <td class="p-2 text-amber-600">${r.cpuUtilization.toFixed(1)}%</td>
+        <td class="p-2 text-purple-600">${r.throughput.toFixed(3)}</td>
       </tr>
     `
       )
@@ -221,6 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 4. Attach Event Listeners
   document.getElementById("btnGenerate").addEventListener("click", () => {
     generateWorkload();
+    executeSimulation();
   });
 
   document.getElementById("btnRun").addEventListener("click", () => {
@@ -231,4 +293,6 @@ document.addEventListener("DOMContentLoaded", () => {
   generateWorkload();
   executeSimulation();
 });
+
+
 
