@@ -1,4 +1,3 @@
-
 /**
  * src/js/simulator.js
  */
