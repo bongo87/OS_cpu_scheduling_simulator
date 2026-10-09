@@ -6,6 +6,11 @@
 let barChartInstance = null;
 let pieChartInstance = null;
 
+// Batch study config (used later in Commit 3)
+const BATCH_PROCESS_COUNTS = [10, 20, 30, 40, 50];
+const BATCH_TRIALS = 5;
+const BATCH_QUANTUM = 3;
+
 document.addEventListener("DOMContentLoaded", () => {
   let currentProcesses = [];
 
@@ -134,7 +139,6 @@ document.addEventListener("DOMContentLoaded", () => {
       </h2>
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Chart 1: Bar Chart -->
         <div class="bg-[#F8F7FC] p-4 rounded-lg border border-[#E4DDF2] flex flex-col items-center">
           <h3 class="text-xs font-bold text-[#756D80] uppercase tracking-wider mb-2">Average Times Comparison</h3>
           <div class="relative h-64 w-full">
@@ -142,7 +146,6 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
 
-        <!-- Chart 2: Pie Chart -->
         <div class="bg-[#F8F7FC] p-4 rounded-lg border border-[#E4DDF2] flex flex-col items-center">
           <h3 class="text-xs font-bold text-[#756D80] uppercase tracking-wider mb-2">Total Waiting Time Distribution</h3>
           <div class="relative h-64 w-full">
@@ -176,7 +179,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Enable / disable the Run button based on whether a workload exists
   function setRunEnabled(enabled) {
     const runBtn = document.getElementById("btnRun");
     if (!runBtn) return;
@@ -185,7 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
     runBtn.classList.toggle("cursor-not-allowed", !enabled);
   }
 
-  // Wipe EVERYTHING back to a clean slate
   function clearAll() {
     currentProcesses = [];
 
@@ -206,44 +207,52 @@ document.addEventListener("DOMContentLoaded", () => {
     setRunEnabled(false);
   }
 
+  // Deterministic RNG so results are reproducible
+  function seededRandom(seed) {
+    return function () {
+      seed |= 0;
+      seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Build a workload deterministically from a supplied rng function
+  function buildWorkload(count, rng) {
+    const procs = [];
+    let t = 1;
+    for (let i = 1; i <= count; i++) {
+      t += Math.floor(rng() * 3);
+      procs.push({
+        id: `P${i}`,
+        arrivalTime: t,
+        burstTime: Math.floor(rng() * 10) + 1,
+        priority: Math.floor(rng() * 5) + 1,
+      });
+    }
+    return procs;
+  }
+
   // 2. Random Workload Generator (Only builds workload and table)
   function generateWorkload() {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
-    currentProcesses = [];
+    const rng = seededRandom(Math.floor(Math.random() * 1e9));
+    currentProcesses = buildWorkload(count, rng);
 
-    let currentArrivalTime = 1;
-    for (let i = 1; i <= count; i++) {
-      const arrivalIncrement = Math.floor(Math.random() * 3); // 0, 1, or 2
-      currentArrivalTime += arrivalIncrement;
-
-      currentProcesses.push({
-        id: `P${i}`,
-        arrivalTime: currentArrivalTime,
-        burstTime: Math.floor(Math.random() * 10) + 1, // Random burst time 1-10
-        priority: Math.floor(Math.random() * 5) + 1,   // Random priority 1-5
-      });
-    }
-
-    // Generate random time quantum for Round Robin
     const randomQuantum = Math.floor(Math.random() * 5) + 2; // 2-6
     const quantumDisplay = document.getElementById("quantumDisplay");
     if (quantumDisplay) {
       quantumDisplay.textContent = `Q=${randomQuantum} (applies to all processes)`;
     }
 
-    // Render interactive workload table inputs
     renderWorkloadTable();
-
-    // Reset previous execution results
     resetOutputs();
-
-    // Enable Run now that a workload exists
     setRunEnabled(true);
 
     return randomQuantum;
   }
 
-  // Helper to render interactive table inputs
   function renderWorkloadTable() {
     const tableBody = document.getElementById("workloadTableBody");
     if (!tableBody) return;
@@ -254,48 +263,27 @@ document.addEventListener("DOMContentLoaded", () => {
       <tr class="hover:bg-[#F3EEFF]/30">
         <td class="p-2 font-bold text-[#6D28D9]">${p.id}</td>
         <td class="p-2">
-          <input 
-            type="number" 
-            min="0" 
-            value="${p.arrivalTime}" 
-            data-index="${index}" 
-            data-field="arrivalTime"
-            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]"
-          />
+          <input type="number" min="0" value="${p.arrivalTime}" data-index="${index}" data-field="arrivalTime"
+            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]" />
         </td>
         <td class="p-2">
-          <input 
-            type="number" 
-            min="1" 
-            value="${p.burstTime}" 
-            data-index="${index}" 
-            data-field="burstTime"
-            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]"
-          />
+          <input type="number" min="1" value="${p.burstTime}" data-index="${index}" data-field="burstTime"
+            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]" />
         </td>
         <td class="p-2">
-          <input 
-            type="number" 
-            min="1" 
-            max="5" 
-            value="${p.priority}" 
-            data-index="${index}" 
-            data-field="priority"
-            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]"
-          />
+          <input type="number" min="1" max="5" value="${p.priority}" data-index="${index}" data-field="priority"
+            class="process-input w-20 bg-[#F8F7FC] border border-[#E4DDF2] rounded px-2 py-1 text-xs text-[#211B2D] focus:outline-none focus:border-[#6D28D9]" />
         </td>
       </tr>
     `
       )
       .join("");
 
-    // Event listener to sync live changes back to currentProcesses state array
     document.querySelectorAll(".process-input").forEach((input) => {
       input.addEventListener("input", (e) => {
         const index = parseInt(e.target.getAttribute("data-index"), 10);
         const field = e.target.getAttribute("data-field");
         const val = parseInt(e.target.value, 10) || 0;
-
         if (currentProcesses[index]) {
           currentProcesses[index][field] = val;
         }
@@ -310,7 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const avgTurnaroundTimes = results.map((r) => r.avgTurnaroundTime);
     const avgResponseTimes = results.map((r) => r.avgResponseTime || 0);
 
-    // --- 1. BAR CHART: Average Times Comparison ---
     const ctxBar = document.getElementById("comparisonBarChart");
     if (ctxBar) {
       if (barChartInstance) barChartInstance.destroy();
@@ -320,29 +307,15 @@ document.addEventListener("DOMContentLoaded", () => {
         data: {
           labels: labels,
           datasets: [
-            {
-              label: "Avg Wait Time (s)",
-              data: avgWaitTimes,
-              backgroundColor: "rgba(109, 40, 217, 0.8)",
-            },
-            {
-              label: "Avg Turnaround Time (s)",
-              data: avgTurnaroundTimes,
-              backgroundColor: "rgba(5, 150, 105, 0.8)",
-            },
-            {
-              label: "Avg Response Time (s)",
-              data: avgResponseTimes,
-              backgroundColor: "rgba(219, 39, 119, 0.8)",
-            },
+            { label: "Avg Wait Time (s)", data: avgWaitTimes, backgroundColor: "rgba(109, 40, 217, 0.8)" },
+            { label: "Avg Turnaround Time (s)", data: avgTurnaroundTimes, backgroundColor: "rgba(5, 150, 105, 0.8)" },
+            { label: "Avg Response Time (s)", data: avgResponseTimes, backgroundColor: "rgba(219, 39, 119, 0.8)" },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } },
-          },
+          plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } } },
           scales: {
             y: { beginAtZero: true, grid: { color: "rgba(228, 221, 242, 0.5)" } },
             x: { grid: { display: false } },
@@ -351,17 +324,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // --- 2. PIE CHART: Total Waiting Time Share ---
     const ctxPie = document.getElementById("comparisonPieChart");
     if (ctxPie) {
       if (pieChartInstance) pieChartInstance.destroy();
-
-      const pieFillColors = [
-        "rgba(109, 40, 217, 0.85)",
-        "rgba(14, 165, 233, 0.85)",
-        "rgba(245, 158, 11, 0.85)",
-      ];
-      const pieBorderColors = ["#6D28D9", "#0EA5E9", "#F59E0B"];
 
       pieChartInstance = new Chart(ctxPie, {
         type: "pie",
@@ -371,8 +336,8 @@ document.addEventListener("DOMContentLoaded", () => {
             {
               label: "Avg Waiting Time Share",
               data: avgWaitTimes,
-              backgroundColor: pieFillColors,
-              borderColor: pieBorderColors,
+              backgroundColor: ["rgba(109, 40, 217, 0.85)", "rgba(14, 165, 233, 0.85)", "rgba(245, 158, 11, 0.85)"],
+              borderColor: ["#6D28D9", "#0EA5E9", "#F59E0B"],
               borderWidth: 2,
             },
           ],
@@ -449,18 +414,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 5. Attach Event Listeners
-  document.getElementById("btnGenerate").addEventListener("click", () => {
-    generateWorkload();
-  });
+  document.getElementById("btnGenerate").addEventListener("click", () => generateWorkload());
+  document.getElementById("btnRun").addEventListener("click", () => executeSimulation());
+  document.getElementById("btnClear").addEventListener("click", () => clearAll());
 
-  document.getElementById("btnRun").addEventListener("click", () => {
-    executeSimulation();
-  });
-
-  document.getElementById("btnClear").addEventListener("click", () => {
-    clearAll();
-  });
-
-  // Initial setup on page load: create initial workload but wait for Run Simulation
+  // Initial setup on page load
   generateWorkload();
 });
