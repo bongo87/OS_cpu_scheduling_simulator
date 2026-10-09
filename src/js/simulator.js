@@ -5,24 +5,23 @@
 // Keep track of active Chart.js instances to allow clean re-rendering
 let barChartInstance = null;
 let pieChartInstance = null;
+let trendChartInstance = null;
 
-// Batch study config (used later in Commit 3)
+// Batch study config
 const BATCH_PROCESS_COUNTS = [10, 20, 30, 40, 50];
 const BATCH_TRIALS = 5;
 const BATCH_QUANTUM = 3;
+let batchResults = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   let currentProcesses = [];
 
-  // 1. Inject Dashboard UI into <main id="app">
   const appContainer = document.getElementById("app");
   if (!appContainer) return;
 
   appContainer.innerHTML = `
-    <!-- Top Controls & Generated Workload Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      <!-- Controls Card -->
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
         <h2 class="text-lg font-bold text-[#211B2D]">
           Simulation Controls (Audio-Video System)
@@ -62,7 +61,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
 
-      <!-- Generated Workload Table (Interactive Inputs Enabled) -->
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
         <h2 class="text-lg font-bold text-[#211B2D] mb-3">
           Workload Configuration (Audio-Video Processes)
@@ -77,14 +75,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 <th class="p-2 rounded-r">PRIORITY</th>
               </tr>
             </thead>
-            <tbody id="workloadTableBody" class="divide-y divide-slate-200 text-[#756D80]">
-              <!-- Dynamically populated with interactive input fields -->
-            </tbody>
+            <tbody id="workloadTableBody" class="divide-y divide-slate-200 text-[#756D80]"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- Performance Metrics Summary Table -->
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg">
         <h2 class="text-lg font-bold text-[#211B2D] mb-3">
           Performance Metrics
@@ -110,7 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     </div>
 
-    <!-- Execution Timelines (Gantt Charts Matrix) -->
     <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-6">
       <h2 class="text-lg font-bold text-[#211B2D]">
         Execution Timelines (Gantt Charts)
@@ -132,7 +126,6 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
 
-    <!-- Metric Comparison Visualizations Grid (Bar & Pie Charts) -->
     <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
       <h2 class="text-lg font-bold text-[#211B2D]">
         Metric Comparison Visualizations
@@ -154,9 +147,36 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
     </div>
+
+    <!-- Batch Study: metric trends vs. process count -->
+    <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 class="text-lg font-bold text-[#211B2D]">Batch Study — Metrics vs. Process Count</h2>
+          <p class="text-xs text-[#756D80] mt-1">
+            Runs each algorithm across 10, 20, 30, 40 and 50 processes (${BATCH_TRIALS} seeded trials each).
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="trendMetricSelect" class="bg-[#F8F7FC] border border-[#E4DDF2] rounded-lg px-3 py-2 text-xs text-[#40384A] focus:outline-none focus:border-[#6D28D9]">
+            <option value="wait">Avg Waiting Time</option>
+            <option value="tat">Avg Turnaround Time</option>
+            <option value="resp">Avg Response Time</option>
+            <option value="cpu">CPU Utilisation (%)</option>
+            <option value="throughput">Throughput</option>
+          </select>
+          <button id="btnBatch" class="bg-[#6D28D9] hover:bg-[#5b21b6] text-white font-bold text-xs py-2 px-4 rounded-lg transition-colors shadow">
+            Run Batch Study
+          </button>
+        </div>
+      </div>
+
+      <div class="relative h-72 w-full bg-[#F8F7FC] p-4 rounded-lg border border-[#E4DDF2]">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
   `;
 
-  // Helper to reset outputs prior to running simulation
   function resetOutputs() {
     const metricsBody = document.getElementById("metricsTableBody");
     if (metricsBody) {
@@ -169,14 +189,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (el) el.innerHTML = `<div class="text-xs text-slate-400 italic py-2">Click "Run Simulation" to generate Gantt chart</div>`;
     });
 
-    if (barChartInstance) {
-      barChartInstance.destroy();
-      barChartInstance = null;
-    }
-    if (pieChartInstance) {
-      pieChartInstance.destroy();
-      pieChartInstance = null;
-    }
+    if (barChartInstance) { barChartInstance.destroy(); barChartInstance = null; }
+    if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
+    if (trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
   }
 
   function setRunEnabled(enabled) {
@@ -189,6 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function clearAll() {
     currentProcesses = [];
+    batchResults = null;
 
     const tableBody = document.getElementById("workloadTableBody");
     if (tableBody) {
@@ -207,7 +223,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setRunEnabled(false);
   }
 
-  // Deterministic RNG so results are reproducible
   function seededRandom(seed) {
     return function () {
       seed |= 0;
@@ -218,7 +233,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // Build a workload deterministically from a supplied rng function
   function buildWorkload(count, rng) {
     const procs = [];
     let t = 1;
@@ -234,13 +248,97 @@ document.addEventListener("DOMContentLoaded", () => {
     return procs;
   }
 
-  // 2. Random Workload Generator (Only builds workload and table)
+  // === Batch Study ===
+  function runBatchStudy() {
+    const algos = [
+      "Preemptive FCFS (Priority)",
+      "SRTF (Priority)",
+      `Round Robin (Q=${BATCH_QUANTUM}, Priority)`,
+    ];
+    const series = algos.map(() => ({ wait: [], tat: [], resp: [], cpu: [], throughput: [] }));
+
+    BATCH_PROCESS_COUNTS.forEach((count) => {
+      const totals = algos.map(() => ({ wait: 0, tat: 0, resp: 0, cpu: 0, thr: 0 }));
+
+      for (let trial = 0; trial < BATCH_TRIALS; trial++) {
+        const rng = seededRandom(count * 1000 + trial + 1);
+        const procs = buildWorkload(count, rng);
+
+        const results = [
+          runFCFS(JSON.parse(JSON.stringify(procs))),
+          runSRTF(JSON.parse(JSON.stringify(procs))),
+          runRoundRobin(JSON.parse(JSON.stringify(procs)), BATCH_QUANTUM),
+        ];
+
+        results.forEach((r, i) => {
+          totals[i].wait += r.avgWaitingTime;
+          totals[i].tat  += r.avgTurnaroundTime;
+          totals[i].resp += r.avgResponseTime || 0;
+          totals[i].cpu  += r.cpuUtilization;
+          totals[i].thr  += r.throughput;
+        });
+      }
+
+      totals.forEach((t, i) => {
+        series[i].wait.push(t.wait / BATCH_TRIALS);
+        series[i].tat.push(t.tat / BATCH_TRIALS);
+        series[i].resp.push(t.resp / BATCH_TRIALS);
+        series[i].cpu.push(t.cpu / BATCH_TRIALS);
+        series[i].throughput.push(t.thr / BATCH_TRIALS);
+      });
+    });
+
+    return { processCounts: BATCH_PROCESS_COUNTS, algorithms: algos, series };
+  }
+
+  function renderTrendChart(metric) {
+    const canvas = document.getElementById("trendChart");
+    if (!canvas || !batchResults) return;
+
+    if (trendChartInstance) trendChartInstance.destroy();
+
+    const colors = ["#6D28D9", "#0EA5E9", "#F59E0B"];
+
+    trendChartInstance = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels: batchResults.processCounts.map((c) => `${c} processes`),
+        datasets: batchResults.algorithms.map((name, i) => ({
+          label: name,
+          data: batchResults.series[i][metric],
+          borderColor: colors[i],
+          backgroundColor: colors[i] + "22",
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 4,
+        })),
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}`,
+            },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: "rgba(228,221,242,0.5)" } },
+          x: { grid: { display: false } },
+        },
+      },
+    });
+  }
+
+  // === Single-workload flow ===
   function generateWorkload() {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
     const rng = seededRandom(Math.floor(Math.random() * 1e9));
     currentProcesses = buildWorkload(count, rng);
 
-    const randomQuantum = Math.floor(Math.random() * 5) + 2; // 2-6
+    const randomQuantum = Math.floor(Math.random() * 5) + 2;
     const quantumDisplay = document.getElementById("quantumDisplay");
     if (quantumDisplay) {
       quantumDisplay.textContent = `Q=${randomQuantum} (applies to all processes)`;
@@ -291,7 +389,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 3. Render Comparison Charts (Bar Chart & Pie Chart)
   function renderComparisonChart(results) {
     const labels = results.map((r) => r.algorithm);
     const avgWaitTimes = results.map((r) => r.avgWaitingTime);
@@ -301,7 +398,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctxBar = document.getElementById("comparisonBarChart");
     if (ctxBar) {
       if (barChartInstance) barChartInstance.destroy();
-
       barChartInstance = new Chart(ctxBar, {
         type: "bar",
         data: {
@@ -313,8 +409,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ],
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false,
           plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } } },
           scales: {
             y: { beginAtZero: true, grid: { color: "rgba(228, 221, 242, 0.5)" } },
@@ -327,24 +422,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctxPie = document.getElementById("comparisonPieChart");
     if (ctxPie) {
       if (pieChartInstance) pieChartInstance.destroy();
-
       pieChartInstance = new Chart(ctxPie, {
         type: "pie",
         data: {
           labels: labels,
-          datasets: [
-            {
-              label: "Avg Waiting Time Share",
-              data: avgWaitTimes,
-              backgroundColor: ["rgba(109, 40, 217, 0.85)", "rgba(14, 165, 233, 0.85)", "rgba(245, 158, 11, 0.85)"],
-              borderColor: ["#6D28D9", "#0EA5E9", "#F59E0B"],
-              borderWidth: 2,
-            },
-          ],
+          datasets: [{
+            label: "Avg Waiting Time Share",
+            data: avgWaitTimes,
+            backgroundColor: ["rgba(109, 40, 217, 0.85)", "rgba(14, 165, 233, 0.85)", "rgba(245, 158, 11, 0.85)"],
+            borderColor: ["#6D28D9", "#0EA5E9", "#F59E0B"],
+            borderWidth: 2,
+          }],
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false,
           plugins: {
             legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } },
             tooltip: {
@@ -363,7 +454,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 4. Main Controller Runner (Only triggered on "Run Simulation")
   function executeSimulation() {
     document.querySelectorAll(".process-input").forEach((input) => {
       const index = parseInt(input.getAttribute("data-index"), 10);
@@ -389,9 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const results = [fcfsResult, srtfResult, rrResult];
 
     const metricsBody = document.getElementById("metricsTableBody");
-    metricsBody.innerHTML = results
-      .map(
-        (r) => `
+    metricsBody.innerHTML = results.map((r) => `
       <tr class="hover:bg-[#F3EEFF]/30">
         <td class="p-2 font-bold text-[#211B2D]">${r.algorithm}</td>
         <td class="p-2 text-[#6D28D9]">${r.avgWaitingTime.toFixed(2)}</td>
@@ -400,9 +488,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td class="p-2 text-amber-600">${r.cpuUtilization.toFixed(1)}%</td>
         <td class="p-2 text-purple-600">${r.throughput.toFixed(3)}</td>
       </tr>
-    `
-      )
-      .join("");
+    `).join("");
 
     if (typeof renderRowGanttChart === "function") {
       renderRowGanttChart("fcfsGanttContainer", fcfsResult.ganttChart, currentProcesses);
@@ -418,6 +504,14 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnRun").addEventListener("click", () => executeSimulation());
   document.getElementById("btnClear").addEventListener("click", () => clearAll());
 
-  // Initial setup on page load
+  document.getElementById("btnBatch").addEventListener("click", () => {
+    batchResults = runBatchStudy();
+    renderTrendChart(document.getElementById("trendMetricSelect").value);
+  });
+
+  document.getElementById("trendMetricSelect").addEventListener("change", (e) => {
+    if (batchResults) renderTrendChart(e.target.value);
+  });
+
   generateWorkload();
 });
