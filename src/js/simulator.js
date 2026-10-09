@@ -2,12 +2,10 @@
  * src/js/simulator.js
  */
 
-// Keep track of active Chart.js instances to allow clean re-rendering
 let barChartInstance = null;
 let pieChartInstance = null;
 let trendChartInstance = null;
 
-// Batch study config
 const BATCH_PROCESS_COUNTS = [10, 20, 30, 40, 50];
 const BATCH_TRIALS = 5;
 const BATCH_QUANTUM = 3;
@@ -148,7 +146,6 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
 
-    <!-- Batch Study: metric trends vs. process count -->
     <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -454,6 +451,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Find index of best algorithm per metric
+  function getBestIndices(results) {
+    const minIdx = (k) =>
+      results.reduce((b, r, i) => ((r[k] ?? Infinity) < (results[b]?.[k] ?? Infinity) ? i : b), 0);
+    const maxIdx = (k) =>
+      results.reduce((b, r, i) => ((r[k] ?? -Infinity) > (results[b]?.[k] ?? -Infinity) ? i : b), 0);
+
+    return {
+      waiting:    minIdx("avgWaitingTime"),
+      turnaround: minIdx("avgTurnaroundTime"),
+      response:   minIdx("avgResponseTime"),
+      cpu:        maxIdx("cpuUtilization"),
+      throughput: maxIdx("throughput"),
+    };
+  }
+
   function executeSimulation() {
     document.querySelectorAll(".process-input").forEach((input) => {
       const index = parseInt(input.getAttribute("data-index"), 10);
@@ -478,17 +491,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const results = [fcfsResult, srtfResult, rrResult];
 
+    const best = getBestIndices(results);
+    const hit = (isBest) =>
+      isBest ? "bg-emerald-50 font-bold ring-1 ring-inset ring-emerald-300" : "";
+
     const metricsBody = document.getElementById("metricsTableBody");
-    metricsBody.innerHTML = results.map((r) => `
+    metricsBody.innerHTML = results
+      .map(
+        (r, i) => `
       <tr class="hover:bg-[#F3EEFF]/30">
         <td class="p-2 font-bold text-[#211B2D]">${r.algorithm}</td>
-        <td class="p-2 text-[#6D28D9]">${r.avgWaitingTime.toFixed(2)}</td>
-        <td class="p-2 text-emerald-600">${r.avgTurnaroundTime.toFixed(2)}</td>
-        <td class="p-2 text-pink-600">${(r.avgResponseTime || 0).toFixed(2)}</td>
-        <td class="p-2 text-amber-600">${r.cpuUtilization.toFixed(1)}%</td>
-        <td class="p-2 text-purple-600">${r.throughput.toFixed(3)}</td>
+        <td class="p-2 text-[#6D28D9] ${hit(i === best.waiting)}">${r.avgWaitingTime.toFixed(2)}</td>
+        <td class="p-2 text-emerald-600 ${hit(i === best.turnaround)}">${r.avgTurnaroundTime.toFixed(2)}</td>
+        <td class="p-2 text-pink-600 ${hit(i === best.response)}">${(r.avgResponseTime || 0).toFixed(2)}</td>
+        <td class="p-2 text-amber-600 ${hit(i === best.cpu)}">${r.cpuUtilization.toFixed(1)}%</td>
+        <td class="p-2 text-purple-600 ${hit(i === best.throughput)}">${r.throughput.toFixed(3)}</td>
       </tr>
-    `).join("");
+    `
+      )
+      .join("");
 
     if (typeof renderRowGanttChart === "function") {
       renderRowGanttChart("fcfsGanttContainer", fcfsResult.ganttChart, currentProcesses);
