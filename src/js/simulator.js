@@ -8,8 +8,9 @@ let trendChartInstance = null;
 
 const BATCH_PROCESS_COUNTS = [10, 20, 30, 40, 50];
 const BATCH_TRIALS = 5;
-const BATCH_QUANTUM = 3;
+const BATCH_QUANTUM = 3; // fallback if quantum display isn't readable
 let batchResults = null;
+let currentWorkloadSeed = null; // remembers the seed behind the current workload
 
 document.addEventListener("DOMContentLoaded", () => {
   let currentProcesses = [];
@@ -146,12 +147,13 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
 
+    <!-- Batch Study -->
     <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 class="text-lg font-bold text-[#211B2D]">Batch Study — Metrics vs. Process Count</h2>
           <p class="text-xs text-[#756D80] mt-1">
-            Runs each algorithm across 10, 20, 30, 40 and 50 processes (${BATCH_TRIALS} seeded trials each).
+            Sweeps each algorithm across 10, 20, 30, 40 and 50 processes (${BATCH_TRIALS} trials each), using the current workload's seed and time quantum.
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -202,6 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function clearAll() {
     currentProcesses = [];
     batchResults = null;
+    currentWorkloadSeed = null; // reset the saved seed too
 
     const tableBody = document.getElementById("workloadTableBody");
     if (tableBody) {
@@ -247,10 +250,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // === Batch Study ===
   function runBatchStudy() {
+    // Inherit the current workload's seed so the results reflect the user's data.
+    // Trial 0 at the current process count reproduces the exact workload in the table.
+    const baseSeed = currentWorkloadSeed ?? 12345;
+
+    // Read the quantum currently shown on the display, so RR matches what the user is running.
+    const quantumDisplay = document.getElementById("quantumDisplay");
+    const quantumMatch = quantumDisplay ? quantumDisplay.textContent.match(/\d+/) : null;
+    const quantum = quantumMatch ? parseInt(quantumMatch[0], 10) : BATCH_QUANTUM;
+
     const algos = [
       "Preemptive FCFS (Priority)",
       "SRTF (Priority)",
-      `Round Robin (Q=${BATCH_QUANTUM}, Priority)`,
+      `Round Robin (Q=${quantum}, Priority)`,
     ];
     const series = algos.map(() => ({ wait: [], tat: [], resp: [], cpu: [], throughput: [] }));
 
@@ -258,13 +270,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const totals = algos.map(() => ({ wait: 0, tat: 0, resp: 0, cpu: 0, thr: 0 }));
 
       for (let trial = 0; trial < BATCH_TRIALS; trial++) {
-        const rng = seededRandom(count * 1000 + trial + 1);
+        const rng = seededRandom(baseSeed + count * 1000 + trial);
         const procs = buildWorkload(count, rng);
 
         const results = [
           runFCFS(JSON.parse(JSON.stringify(procs))),
           runSRTF(JSON.parse(JSON.stringify(procs))),
-          runRoundRobin(JSON.parse(JSON.stringify(procs)), BATCH_QUANTUM),
+          runRoundRobin(JSON.parse(JSON.stringify(procs)), quantum),
         ];
 
         results.forEach((r, i) => {
@@ -332,10 +344,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // === Single-workload flow ===
   function generateWorkload() {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
-    const rng = seededRandom(Math.floor(Math.random() * 1e9));
+    const seed = Math.floor(Math.random() * 1e9);
+    currentWorkloadSeed = seed;                 // remember the seed for the batch study
+    const rng = seededRandom(seed);
     currentProcesses = buildWorkload(count, rng);
 
-    const randomQuantum = Math.floor(Math.random() * 5) + 2;
+    const randomQuantum = Math.floor(Math.random() * 5) + 2; // 2-6
     const quantumDisplay = document.getElementById("quantumDisplay");
     if (quantumDisplay) {
       quantumDisplay.textContent = `Q=${randomQuantum} (applies to all processes)`;
