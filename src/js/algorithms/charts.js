@@ -1,12 +1,12 @@
 /**
- * src/js/charts.js
+ * src/js/algorithms/charts.js
+ * Shared helpers: system metric aggregation, Gantt compression,
+ * per-process metric computation, and the row-style Gantt renderer.
  */
 
-// Track global Chart instance for updates
-let comparisonChartInstance = null;
-
 /**
- * Shared System Metrics Calculator
+ * Aggregates per-process metrics plus the compressed Gantt chart
+ * into system-level averages.
  */
 function calculateSystemMetrics(algorithmName, ganttChart, processMetrics) {
   const totalProcesses = processMetrics.length;
@@ -48,7 +48,7 @@ function calculateSystemMetrics(algorithmName, ganttChart, processMetrics) {
 }
 
 /**
- * Compresses sequential raw time steps into block intervals
+ * Compresses sequential raw time steps into block intervals.
  */
 function compressGantt(rawGantt) {
   const compressed = [];
@@ -61,7 +61,10 @@ function compressGantt(rawGantt) {
   };
 
   for (let i = 1; i < rawGantt.length; i++) {
-    if (rawGantt[i].processId === currentBlock.processId && rawGantt[i].time === currentBlock.endTime + 1) {
+    if (
+      rawGantt[i].processId === currentBlock.processId &&
+      rawGantt[i].time === currentBlock.endTime + 1
+    ) {
       currentBlock.endTime = rawGantt[i].time;
     } else {
       compressed.push(currentBlock);
@@ -77,7 +80,7 @@ function compressGantt(rawGantt) {
 }
 
 /**
- * Computes turnaround time, waiting time, and response time
+ * Computes turnaround time, waiting time, and response time per process.
  */
 function computeProcessMetrics(procs) {
   return procs.map((p) => {
@@ -98,15 +101,8 @@ function computeProcessMetrics(procs) {
   });
 }
 
-// Expose functions to global scope
-window.calculateSystemMetrics = calculateSystemMetrics;
-window.compressGantt = compressGantt;
-window.computeProcessMetrics = computeProcessMetrics;
-window.renderRowGanttChart = renderRowGanttChart;
-window.renderComparisonChart = renderComparisonChart;
-
 /**
- * Renders the per-process row grid matching the reference table format:
+ * Renders a per-process execution grid:
  * [ Process ID | Priority | Arrival | Burst time | 1 | 2 | 3 ... N ]
  */
 function renderRowGanttChart(containerId, ganttChart, processes) {
@@ -122,29 +118,25 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
   }
 
   const maxTime = Math.max(...ganttChart.map((b) => b.endTime));
-  
-  // Sort processes naturally (P1, P2, P3...)
-  const sortedProcesses = [...processes].sort((a, b) => 
+
+  const sortedProcesses = [...processes].sort((a, b) =>
     a.id.localeCompare(b.id, undefined, { numeric: true })
   );
 
   let html = `<div class="overflow-x-auto my-2">
     <table class="w-full text-xs text-center border-collapse bg-white text-[#211B2D] border border-[#E4DDF2] font-sans">`;
 
-  // Header row matching reference image columns
   html += `<thead><tr class="bg-[#F3EEFF] text-[#4C1D95] border-b border-gray-400 font-bold">
     <th class="p-1 border border-gray-400 text-left min-w-[90px]">Process ID</th>
     <th class="p-1 border border-gray-400 min-w-[50px]">Priority</th>
     <th class="p-1 border border-gray-400 min-w-[50px]">Arrival</th>
     <th class="p-1 border border-gray-400 min-w-[65px]">Burst time</th>`;
 
-  // Time step columns 1 to maxTime
   for (let t = 1; t <= maxTime; t++) {
     html += `<th class="p-1 border border-gray-300 min-w-[24px] font-normal">${t}</th>`;
   }
   html += `</tr></thead><tbody>`;
 
-  // Process Rows
   sortedProcesses.forEach((p) => {
     html += `<tr class="border-b border-gray-300 hover:bg-gray-50">
       <td class="p-1 border border-gray-400 text-left font-semibold">${p.id}</td>
@@ -152,7 +144,6 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
       <td class="p-1 border border-gray-400">${p.arrivalTime}</td>
       <td class="p-1 border border-gray-400">${p.burstTime}</td>`;
 
-    // Time-unit execution cells
     for (let t = 1; t <= maxTime; t++) {
       const isActive = ganttChart.some(
         (b) => b.processId === p.id && b.startTime <= t && b.endTime >= t
@@ -171,87 +162,8 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
   container.innerHTML = html;
 }
 
-/**
- * Initializes and updates the Chart.js metric comparison graph
- */
-function renderComparisonChart(results) {
-  const canvas = document.getElementById("comparisonChart");
-  if (!canvas) {
-    console.error("Comparison chart canvas not found");
-    return;
-  }
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    console.error("Could not get 2D context for comparison chart");
-    return;
-  }
-
-  if (comparisonChartInstance) {
-    comparisonChartInstance.destroy();
-  }
-
-  if (!results || results.length === 0) {
-    console.error("No results to display in comparison chart");
-    return;
-  }
-
-  const labels = results.map((r) => r.algorithm);
-
-  try {
-    comparisonChartInstance = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "Avg Waiting Time",
-            data: results.map((r) => Number(r.avgWaitingTime.toFixed(2))),
-            backgroundColor: "#7C3AED",
-          },
-          {
-            label: "Avg Turnaround Time",
-            data: results.map((r) => Number(r.avgTurnaroundTime.toFixed(2))),
-            backgroundColor: "#D4A017",
-          },
-          {
-            label: "Avg Response Time",
-            data: results.map((r) => Number((r.avgResponseTime || 0).toFixed(2))),
-            backgroundColor: "#059669",
-          },
-          {
-            label: "CPU Utilization (%)",
-            data: results.map((r) => Number(r.cpuUtilization.toFixed(1))),
-            backgroundColor: "#EA580C",
-          },
-          {
-            label: "Throughput",
-            data: results.map((r) => Number(r.throughput.toFixed(3))),
-            backgroundColor: "#2563EB",
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: { color: "rgba(109, 40, 217, 0.12)" },
-            ticks: { color: "#756D80" },
-          },
-          x: {
-            grid: { color: "rgba(109, 40, 217, 0.12)" },
-            ticks: { color: "#756D80" },
-          },
-        },
-        plugins: {
-          legend: { labels: { color: "#40384A" } },
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Error creating comparison chart:", error);
-  }
-}
-
+// ---- Expose helpers to the algorithm files and simulator ----
+window.calculateSystemMetrics = calculateSystemMetrics;
+window.compressGantt = compressGantt;
+window.computeProcessMetrics = computeProcessMetrics;
+window.renderRowGanttChart = renderRowGanttChart;

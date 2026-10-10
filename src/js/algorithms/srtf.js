@@ -1,6 +1,7 @@
 /**
- * Shortest Remaining Time First (SRTF) with Priority Levels
- * Higher numerical value = Higher Priority (5 > 4 > 3 > 2 > 1).
+ * Shortest Remaining Time First (SRTF) — preemptive.
+ * Primary criterion : shortest remaining time.
+ * Tiebreakers       : higher priority (5>1), then arrival, then PID.
  */
 function runSRTF(processes) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
@@ -26,20 +27,17 @@ function runSRTF(processes) {
       continue;
     }
 
-    // 1st Priority: Priority value (desc) | 2nd Priority: Remaining Time (asc) | 3rd: Arrival
+    // Shortest remaining time wins; priority/arrival/PID only break ties.
     readyPool.sort(
       (a, b) =>
-        b.priority - a.priority ||
         a.remainingTime - b.remainingTime ||
+        b.priority - a.priority ||
         a.arrivalTime - b.arrivalTime ||
-        a.id.localeCompare(b.id)
+        a.id.localeCompare(b.id, undefined, { numeric: true })
     );
 
     const currentProc = readyPool[0];
-
-    if (currentProc.startTime === -1) {
-      currentProc.startTime = currentTime;
-    }
+    if (currentProc.startTime === -1) currentProc.startTime = currentTime;
 
     rawGantt.push({ processId: currentProc.id, time: currentTime });
     currentProc.remainingTime--;
@@ -53,9 +51,7 @@ function runSRTF(processes) {
 
   const ganttChart = compressGantt(rawGantt);
   const processMetrics = computeProcessMetrics(procs);
-
-  return calculateSystemMetrics("SRTF (Priority)", ganttChart, processMetrics);
+  return calculateSystemMetrics("SRTF", ganttChart, processMetrics);
 }
 
-// Expose function to global scope
 window.runSRTF = runSRTF;
