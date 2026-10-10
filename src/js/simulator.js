@@ -1,17 +1,56 @@
 /**
  * src/js/simulator.js
+ * CMPG324 — CPU Scheduling Simulator
+ *
+ * External dependencies (loaded BEFORE this file):
+ *   - runFCFS(processes)
+ *   - runSRTF(processes)
+ *   - runRoundRobin(processes, quantum)
+ *   - renderRowGanttChart(containerId, ganttChart, processes)
+ *   - Chart.js
  */
 
+// ============================================================
+// 1. Module-level state
+// ============================================================
 let barChartInstance = null;
 let pieChartInstance = null;
 let trendChartInstance = null;
 
 const BATCH_PROCESS_COUNTS = [10, 20, 30, 40, 50];
 const BATCH_TRIALS = 5;
-const BATCH_QUANTUM = 3; // fallback if quantum display isn't readable
-let batchResults = null;
-let currentWorkloadSeed = null; // remembers the seed behind the current workload
+const FALLBACK_QUANTUM = 3;
 
+const ALGO_NAMES = {
+  fcfs: "FCFS",
+  srtf: "SRTF",
+  rr: "Round Robin",
+};
+
+const METRIC_KEYS = {
+  wait: "avgWaitingTime",
+  tat: "avgTurnaroundTime",
+  resp: "avgResponseTime",
+  cpu: "cpuUtilization",
+  throughput: "throughput",
+};
+
+const METRIC_LABELS = {
+  wait: "Avg Waiting Time (s)",
+  tat: "Avg Turnaround Time (s)",
+  resp: "Avg Response Time (s)",
+  cpu: "CPU Utilisation (%)",
+  throughput: "Throughput",
+};
+
+let batchResults = null;
+let currentWorkloadSeed = null;
+let currentQuantum = null;
+let currentProcessCount = 0;
+
+// ============================================================
+// 2. Boot
+// ============================================================
 document.addEventListener("DOMContentLoaded", () => {
   let currentProcesses = [];
 
@@ -20,15 +59,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   appContainer.innerHTML = `
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
+
       <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
         <h2 class="text-lg font-bold text-[#211B2D]">
           Simulation Controls (Audio-Video System)
         </h2>
         <div class="text-xs text-[#6D28D9] bg-cyan-900/20 p-2 rounded border border-cyan-700/50">
-          <strong>Note:</strong> Higher priority number = Higher priority (5 > 4 > 3 > 2 > 1). When arrival times are equal, higher priority processes run first.
+          <strong>Note:</strong> Higher priority number = Higher priority (5 > 4 > 3 > 2 > 1).
+          When arrival times are equal, higher priority processes run first.
         </div>
-        
+
         <div>
           <label class="block text-xs text-[#756D80] mb-1">PROCESS COUNT</label>
           <select id="processCountSelect" class="w-full bg-[#F8F7FC] border border-[#E4DDF2] rounded-lg px-3 py-2 text-sm text-[#40384A] focus:outline-none focus:border-[#6D28D9]">
@@ -41,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <div>
-          <label class="block text-xs text-[#756D80] mb-1">TIME QUANTUM (RR - System-Wide)</label>
+          <label class="block text-xs text-[#756D80] mb-1">TIME QUANTUM (Round Robin)</label>
           <div id="quantumDisplay" class="w-full bg-[#F8F7FC] border border-[#E4DDF2] rounded-lg px-3 py-2 text-sm text-[#40384A]">
             Auto-generated (random)
           </div>
@@ -110,17 +150,17 @@ document.addEventListener("DOMContentLoaded", () => {
       </h2>
 
       <div>
-        <h3 class="text-sm font-semibold text-[#756D80] mb-2">Preemptive FCFS (Priority)</h3>
+        <h3 class="text-sm font-semibold text-[#756D80] mb-2">FCFS</h3>
         <div id="fcfsGanttContainer"></div>
       </div>
 
       <div>
-        <h3 class="text-sm font-semibold text-[#756D80] mb-2">SRTF (Priority)</h3>
+        <h3 class="text-sm font-semibold text-[#756D80] mb-2">SRTF</h3>
         <div id="srtfGanttContainer"></div>
       </div>
 
       <div>
-        <h3 class="text-sm font-semibold text-[#756D80] mb-2">Round Robin (Priority)</h3>
+        <h3 class="text-sm font-semibold text-[#756D80] mb-2">Round Robin</h3>
         <div id="rrGanttContainer"></div>
       </div>
     </div>
@@ -129,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <h2 class="text-lg font-bold text-[#211B2D]">
         Metric Comparison Visualizations
       </h2>
-      
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-[#F8F7FC] p-4 rounded-lg border border-[#E4DDF2] flex flex-col items-center">
           <h3 class="text-xs font-bold text-[#756D80] uppercase tracking-wider mb-2">Average Times Comparison</h3>
@@ -153,7 +193,8 @@ document.addEventListener("DOMContentLoaded", () => {
         <div>
           <h2 class="text-lg font-bold text-[#211B2D]">Batch Study — Metrics vs. Process Count</h2>
           <p class="text-xs text-[#756D80] mt-1">
-            Sweeps each algorithm across 10, 20, 30, 40 and 50 processes (${BATCH_TRIALS} trials each), using the current workload's seed and time quantum.
+            Sweeps each algorithm across ${BATCH_PROCESS_COUNTS.join(", ")} processes
+            (${BATCH_TRIALS} trials each). Every trial generates a fresh random workload.
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -176,14 +217,18 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
   `;
 
+  // ============================================================
+  // 3. Helpers
+  // ============================================================
+  const clone = (obj) => JSON.parse(JSON.stringify(obj));
+
   function resetOutputs() {
     const metricsBody = document.getElementById("metricsTableBody");
     if (metricsBody) {
       metricsBody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-slate-500">Run simulation to view metrics</td></tr>`;
     }
 
-    const containers = ["fcfsGanttContainer", "srtfGanttContainer", "rrGanttContainer"];
-    containers.forEach((id) => {
+    ["fcfsGanttContainer", "srtfGanttContainer", "rrGanttContainer"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = `<div class="text-xs text-slate-400 italic py-2">Click "Run Simulation" to generate Gantt chart</div>`;
     });
@@ -204,7 +249,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function clearAll() {
     currentProcesses = [];
     batchResults = null;
-    currentWorkloadSeed = null; // reset the saved seed too
+    currentWorkloadSeed = null;
+    currentQuantum = null;
+    currentProcessCount = 0;
 
     const tableBody = document.getElementById("workloadTableBody");
     if (tableBody) {
@@ -237,54 +284,56 @@ document.addEventListener("DOMContentLoaded", () => {
     const procs = [];
     let t = 1;
     for (let i = 1; i <= count; i++) {
-      t += Math.floor(rng() * 3);
+      t += Math.floor(rng() * 3);                       // arrival: random incremental
       procs.push({
         id: `P${i}`,
         arrivalTime: t,
-        burstTime: Math.floor(rng() * 10) + 1,
-        priority: Math.floor(rng() * 5) + 1,
+        burstTime: Math.floor(rng() * 10) + 1,          // 1–10
+        priority: Math.floor(rng() * 5) + 1,            // 1–5 (tiebreaker only)
       });
     }
     return procs;
   }
 
-  // === Batch Study ===
+  // ============================================================
+  // 4. Batch study
+  // ============================================================
   function runBatchStudy() {
-    // Inherit the current workload's seed so the results reflect the user's data.
-    // Trial 0 at the current process count reproduces the exact workload in the table.
+    // Anchor the batch to the current workload's seed so results are
+    // reproducible for a given session, then offset per count + trial.
     const baseSeed = currentWorkloadSeed ?? 12345;
-
-    // Read the quantum currently shown on the display, so RR matches what the user is running.
-    const quantumDisplay = document.getElementById("quantumDisplay");
-    const quantumMatch = quantumDisplay ? quantumDisplay.textContent.match(/\d+/) : null;
-    const quantum = quantumMatch ? parseInt(quantumMatch[0], 10) : BATCH_QUANTUM;
+    const quantum = currentQuantum ?? FALLBACK_QUANTUM;
 
     const algos = [
-      "Preemptive FCFS (Priority)",
-      "SRTF (Priority)",
-      `Round Robin (Q=${quantum}, Priority)`,
+      ALGO_NAMES.fcfs,
+      ALGO_NAMES.srtf,
+      `${ALGO_NAMES.rr} (Q=${quantum})`,
     ];
-    const series = algos.map(() => ({ wait: [], tat: [], resp: [], cpu: [], throughput: [] }));
+
+    const series = algos.map(() => ({
+      wait: [], tat: [], resp: [], cpu: [], throughput: [],
+    }));
 
     BATCH_PROCESS_COUNTS.forEach((count) => {
       const totals = algos.map(() => ({ wait: 0, tat: 0, resp: 0, cpu: 0, thr: 0 }));
 
       for (let trial = 0; trial < BATCH_TRIALS; trial++) {
-        const rng = seededRandom(baseSeed + count * 1000 + trial);
+        const trialSeed = baseSeed + count * 1000 + trial;
+        const rng = seededRandom(trialSeed);
         const procs = buildWorkload(count, rng);
 
         const results = [
-          runFCFS(JSON.parse(JSON.stringify(procs))),
-          runSRTF(JSON.parse(JSON.stringify(procs))),
-          runRoundRobin(JSON.parse(JSON.stringify(procs)), quantum),
+          runFCFS(clone(procs)),
+          runSRTF(clone(procs)),
+          runRoundRobin(clone(procs), quantum),
         ];
 
         results.forEach((r, i) => {
-          totals[i].wait += r.avgWaitingTime;
-          totals[i].tat  += r.avgTurnaroundTime;
+          totals[i].wait += r.avgWaitingTime || 0;
+          totals[i].tat += r.avgTurnaroundTime || 0;
           totals[i].resp += r.avgResponseTime || 0;
-          totals[i].cpu  += r.cpuUtilization;
-          totals[i].thr  += r.throughput;
+          totals[i].cpu += r.cpuUtilization || 0;
+          totals[i].thr += r.throughput || 0;
         });
       }
 
@@ -300,6 +349,9 @@ document.addEventListener("DOMContentLoaded", () => {
     return { processCounts: BATCH_PROCESS_COUNTS, algorithms: algos, series };
   }
 
+  // ============================================================
+  // 5. Trend chart
+  // ============================================================
   function renderTrendChart(metric) {
     const canvas = document.getElementById("trendChart");
     if (!canvas || !batchResults) return;
@@ -334,32 +386,44 @@ document.addEventListener("DOMContentLoaded", () => {
           },
         },
         scales: {
-          y: { beginAtZero: true, grid: { color: "rgba(228,221,242,0.5)" } },
-          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(228,221,242,0.5)" },
+            title: { display: true, text: METRIC_LABELS[metric], font: { size: 10 } },
+          },
+          x: {
+            grid: { display: false },
+            title: { display: true, text: "Process count", font: { size: 10 } },
+          },
         },
       },
     });
   }
 
-  // === Single-workload flow ===
+  // ============================================================
+  // 6. Single-workload flow
+  // ============================================================
   function generateWorkload() {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
     const seed = Math.floor(Math.random() * 1e9);
-    currentWorkloadSeed = seed;                 // remember the seed for the batch study
+
+    currentWorkloadSeed = seed;
+    currentProcessCount = count;
+    currentQuantum = Math.floor(Math.random() * 5) + 2; // 2–6
+
     const rng = seededRandom(seed);
     currentProcesses = buildWorkload(count, rng);
 
-    const randomQuantum = Math.floor(Math.random() * 5) + 2; // 2-6
     const quantumDisplay = document.getElementById("quantumDisplay");
     if (quantumDisplay) {
-      quantumDisplay.textContent = `Q=${randomQuantum} (applies to all processes)`;
+      quantumDisplay.textContent = `Q=${currentQuantum} (applies to Round Robin)`;
     }
 
     renderWorkloadTable();
     resetOutputs();
     setRunEnabled(true);
 
-    return randomQuantum;
+    return currentQuantum;
   }
 
   function renderWorkloadTable() {
@@ -402,8 +466,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderComparisonChart(results) {
     const labels = results.map((r) => r.algorithm);
-    const avgWaitTimes = results.map((r) => r.avgWaitingTime);
-    const avgTurnaroundTimes = results.map((r) => r.avgTurnaroundTime);
+    const avgWaitTimes = results.map((r) => r.avgWaitingTime || 0);
+    const avgTurnaroundTimes = results.map((r) => r.avgTurnaroundTime || 0);
     const avgResponseTimes = results.map((r) => r.avgResponseTime || 0);
 
     const ctxBar = document.getElementById("comparisonBarChart");
@@ -412,7 +476,7 @@ document.addEventListener("DOMContentLoaded", () => {
       barChartInstance = new Chart(ctxBar, {
         type: "bar",
         data: {
-          labels: labels,
+          labels,
           datasets: [
             { label: "Avg Wait Time (s)", data: avgWaitTimes, backgroundColor: "rgba(109, 40, 217, 0.8)" },
             { label: "Avg Turnaround Time (s)", data: avgTurnaroundTimes, backgroundColor: "rgba(5, 150, 105, 0.8)" },
@@ -436,7 +500,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pieChartInstance = new Chart(ctxPie, {
         type: "pie",
         data: {
-          labels: labels,
+          labels,
           datasets: [{
             label: "Avg Waiting Time Share",
             data: avgWaitTimes,
@@ -454,8 +518,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 label: (context) => {
                   const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
                   const value = context.raw;
-                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                  return `${context.label}: ${value.toFixed(2)}s (${percentage}%)`;
+                  const pct = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
+                  return `${context.label}: ${value.toFixed(2)}s (${pct}%)`;
                 },
               },
             },
@@ -465,7 +529,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Find index of best algorithm per metric
   function getBestIndices(results) {
     const minIdx = (k) =>
       results.reduce((b, r, i) => ((r[k] ?? Infinity) < (results[b]?.[k] ?? Infinity) ? i : b), 0);
@@ -473,35 +536,30 @@ document.addEventListener("DOMContentLoaded", () => {
       results.reduce((b, r, i) => ((r[k] ?? -Infinity) > (results[b]?.[k] ?? -Infinity) ? i : b), 0);
 
     return {
-      waiting:    minIdx("avgWaitingTime"),
+      waiting: minIdx("avgWaitingTime"),
       turnaround: minIdx("avgTurnaroundTime"),
-      response:   minIdx("avgResponseTime"),
-      cpu:        maxIdx("cpuUtilization"),
+      response: minIdx("avgResponseTime"),
+      cpu: maxIdx("cpuUtilization"),
       throughput: maxIdx("throughput"),
     };
   }
 
   function executeSimulation() {
+    // Pull the latest user edits from the DOM into currentProcesses.
     document.querySelectorAll(".process-input").forEach((input) => {
       const index = parseInt(input.getAttribute("data-index"), 10);
       const field = input.getAttribute("data-field");
       const val = parseInt(input.value, 10) || 0;
-      if (currentProcesses[index]) {
-        currentProcesses[index][field] = val;
-      }
+      if (currentProcesses[index]) currentProcesses[index][field] = val;
     });
 
-    const quantumDisplay = document.getElementById("quantumDisplay");
-    const quantumMatch = quantumDisplay ? quantumDisplay.textContent.match(/\d+/) : null;
-    const quantum = quantumMatch ? parseInt(quantumMatch[0], 10) : 2;
+    const quantum = currentQuantum ?? FALLBACK_QUANTUM;
 
-    const procsFcfs = JSON.parse(JSON.stringify(currentProcesses));
-    const procsSrtf = JSON.parse(JSON.stringify(currentProcesses));
-    const procsRr = JSON.parse(JSON.stringify(currentProcesses));
+    const fcfsResult = runFCFS(clone(currentProcesses));
+    const srtfResult = runSRTF(clone(currentProcesses));
+    const rrResult = runRoundRobin(clone(currentProcesses), quantum);
 
-    const fcfsResult = typeof runFCFS === "function" ? runFCFS(procsFcfs) : { algorithm: "Preemptive FCFS", ganttChart: [], avgWaitingTime: 0, avgTurnaroundTime: 0, cpuUtilization: 0, throughput: 0 };
-    const srtfResult = typeof runSRTF === "function" ? runSRTF(procsSrtf) : { algorithm: "SRTF", ganttChart: [], avgWaitingTime: 0, avgTurnaroundTime: 0, cpuUtilization: 0, throughput: 0 };
-    const rrResult = typeof runRoundRobin === "function" ? runRoundRobin(procsRr, quantum) : { algorithm: `Round Robin (Q=${quantum})`, ganttChart: [], avgWaitingTime: 0, avgTurnaroundTime: 0, cpuUtilization: 0, throughput: 0 };
+    rrResult.algorithm = `${ALGO_NAMES.rr} (Q=${quantum})`;
 
     const results = [fcfsResult, srtfResult, rrResult];
 
@@ -515,26 +573,26 @@ document.addEventListener("DOMContentLoaded", () => {
         (r, i) => `
       <tr class="hover:bg-[#F3EEFF]/30">
         <td class="p-2 font-bold text-[#211B2D]">${r.algorithm}</td>
-        <td class="p-2 text-[#6D28D9] ${hit(i === best.waiting)}">${r.avgWaitingTime.toFixed(2)}</td>
-        <td class="p-2 text-emerald-600 ${hit(i === best.turnaround)}">${r.avgTurnaroundTime.toFixed(2)}</td>
+        <td class="p-2 text-[#6D28D9] ${hit(i === best.waiting)}">${(r.avgWaitingTime || 0).toFixed(2)}</td>
+        <td class="p-2 text-emerald-600 ${hit(i === best.turnaround)}">${(r.avgTurnaroundTime || 0).toFixed(2)}</td>
         <td class="p-2 text-pink-600 ${hit(i === best.response)}">${(r.avgResponseTime || 0).toFixed(2)}</td>
-        <td class="p-2 text-amber-600 ${hit(i === best.cpu)}">${r.cpuUtilization.toFixed(1)}%</td>
-        <td class="p-2 text-purple-600 ${hit(i === best.throughput)}">${r.throughput.toFixed(3)}</td>
+        <td class="p-2 text-amber-600 ${hit(i === best.cpu)}">${(r.cpuUtilization || 0).toFixed(1)}%</td>
+        <td class="p-2 text-purple-600 ${hit(i === best.throughput)}">${(r.throughput || 0).toFixed(3)}</td>
       </tr>
     `
       )
       .join("");
 
-    if (typeof renderRowGanttChart === "function") {
-      renderRowGanttChart("fcfsGanttContainer", fcfsResult.ganttChart, currentProcesses);
-      renderRowGanttChart("srtfGanttContainer", srtfResult.ganttChart, currentProcesses);
-      renderRowGanttChart("rrGanttContainer", rrResult.ganttChart, currentProcesses);
-    }
+    renderRowGanttChart("fcfsGanttContainer", fcfsResult.ganttChart, currentProcesses);
+    renderRowGanttChart("srtfGanttContainer", srtfResult.ganttChart, currentProcesses);
+    renderRowGanttChart("rrGanttContainer", rrResult.ganttChart, currentProcesses);
 
     renderComparisonChart(results);
   }
 
-  // 5. Attach Event Listeners
+  // ============================================================
+  // 7. Wire up events
+  // ============================================================
   document.getElementById("btnGenerate").addEventListener("click", () => generateWorkload());
   document.getElementById("btnRun").addEventListener("click", () => executeSimulation());
   document.getElementById("btnClear").addEventListener("click", () => clearAll());
@@ -548,5 +606,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (batchResults) renderTrendChart(e.target.value);
   });
 
+  // Initial workload
   generateWorkload();
 });

@@ -1,8 +1,12 @@
 /**
+ * src/js/algorithms/fcfs.js
+ *
  * First-Come, First-Served (FCFS) — non-preemptive.
- * Primary criterion : arrival time.
- * Tiebreakers       : higher priority (5>1), then PID.
- * Note: priority is a tiebreak ONLY; it never preempts a running process.
+ *   Primary criterion : arrival time.
+ *   Tiebreakers       : higher priority (5 > 1), then numeric PID.
+ *
+ * Note: priority is a TIEBREAK ONLY. It never preempts a running process.
+ * Once a process is on the CPU, it runs to completion.
  */
 function runFCFS(processes) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
@@ -16,7 +20,7 @@ function runFCFS(processes) {
   let completed = 0;
   const totalProcesses = procs.length;
   const rawGantt = [];
-  let activeProc = null;   // once picked, runs to completion
+  let activeProc = null; // once picked, runs to completion
 
   while (completed < totalProcesses) {
     if (!activeProc) {

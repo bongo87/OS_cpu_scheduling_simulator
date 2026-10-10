@@ -1,8 +1,11 @@
 /**
+ * src/js/algorithms/roundRobin.js
+ *
  * Round Robin (RR) — preemptive by quantum.
- * Primary criterion : circular order through a ready queue.
- * Tiebreakers       : n/a — RR is order-based, not comparison-based.
- * Note: priority is NOT used here. Quantum applies uniformly to all processes.
+ *   Primary criterion : circular order through a ready queue.
+ *   Quantum applies uniformly to all processes.
+ *
+ * Note: priority is NOT used here. RR is order-based, not comparison-based.
  */
 function runRoundRobin(processes, quantum = 2) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
@@ -17,8 +20,8 @@ function runRoundRobin(processes, quantum = 2) {
   const totalProcesses = procs.length;
   const rawGantt = [];
 
-  const queue = [];                 // processes waiting for CPU
-  const queuedIds = new Set();      // prevent double-enqueue
+  const queue = [];            // processes waiting for CPU
+  const queuedIds = new Set(); // prevent double-enqueue
 
   let activeProc = null;
   let quantumUsed = 0;

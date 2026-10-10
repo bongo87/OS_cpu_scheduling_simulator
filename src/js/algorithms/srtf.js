@@ -1,7 +1,9 @@
 /**
+ * src/js/algorithms/srtf.js
+ *
  * Shortest Remaining Time First (SRTF) — preemptive.
- * Primary criterion : shortest remaining time.
- * Tiebreakers       : higher priority (5>1), then arrival, then PID.
+ *   Primary criterion : shortest remaining time.
+ *   Tiebreakers       : higher priority (5 > 1), then arrival time, then PID.
  */
 function runSRTF(processes) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
@@ -27,7 +29,7 @@ function runSRTF(processes) {
       continue;
     }
 
-    // Shortest remaining time wins; priority/arrival/PID only break ties.
+    // Shortest remaining time wins; priority/arrival/PID break ties.
     readyPool.sort(
       (a, b) =>
         a.remainingTime - b.remainingTime ||
