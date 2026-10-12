@@ -1,8 +1,11 @@
 /**
- * Round Robin (RR) with Priority Levels
- * System-wide time quantum applies to ALL processes.
- * Higher priority processes run first (higher number = higher priority); quantum applies among processes of EQUAL priority.
- * No process runs for more than the quantum time before being preempted.
+ * src/js/algorithms/roundRobin.js
+ *
+ * Round Robin (RR) — preemptive by quantum.
+ *   Primary criterion : circular order through a ready queue.
+ *   Quantum applies uniformly to all processes.
+ *
+ * Note: priority is NOT used here. RR is order-based, not comparison-based.
  */
 function runRoundRobin(processes, quantum = 2) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
@@ -17,69 +20,66 @@ function runRoundRobin(processes, quantum = 2) {
   const totalProcesses = procs.length;
   const rawGantt = [];
 
-  let currentQuantumUsed = 0;
+  const queue = [];            // processes waiting for CPU
+  const queuedIds = new Set(); // prevent double-enqueue
+
   let activeProc = null;
+  let quantumUsed = 0;
+
+  function enqueueArrivals() {
+    procs.forEach((p) => {
+      if (p.arrivalTime <= currentTime && p.remainingTime > 0 && !queuedIds.has(p.id)) {
+        queue.push(p);
+        queuedIds.add(p.id);
+      }
+    });
+  }
 
   while (completed < totalProcesses) {
-    const readyPool = procs.filter(
-      (p) => p.arrivalTime <= currentTime && p.remainingTime > 0
-    );
+    enqueueArrivals();
 
-    if (readyPool.length === 0) {
+    if (!activeProc && queue.length === 0) {
       rawGantt.push({ processId: "IDLE", time: currentTime });
       currentTime++;
-      activeProc = null;
-      currentQuantumUsed = 0;
       continue;
     }
 
-    const highestPriority = Math.max(...readyPool.map((p) => p.priority));
-    const highestPriorityPool = readyPool.filter((p) => p.priority === highestPriority);
-
-    // Check if we need to switch processes:
-    // 1. No active process
-    // 2. Current process completed
-    // 3. Higher priority process arrived (lower priority number < highest priority)
-    // 4. Current process used up its quantum time
-    if (
-      !activeProc ||
-      activeProc.remainingTime === 0 ||
-      activeProc.priority < highestPriority ||
-      currentQuantumUsed >= quantum
-    ) {
-      if (activeProc && activeProc.priority === highestPriority && activeProc.remainingTime > 0 && currentQuantumUsed >= quantum) {
-        // Rotate to next process in same priority level (Round Robin behavior)
-        const index = highestPriorityPool.indexOf(activeProc);
-        activeProc = highestPriorityPool[(index + 1) % highestPriorityPool.length];
-      } else {
-        // Select first process in highest priority pool
-        activeProc = highestPriorityPool[0];
-      }
-      currentQuantumUsed = 0;
-    }
-
-    if (activeProc.startTime === -1) {
-      activeProc.startTime = currentTime;
+    if (!activeProc) {
+      activeProc = queue.shift();
+      queuedIds.delete(activeProc.id);
+      quantumUsed = 0;
+      if (activeProc.startTime === -1) activeProc.startTime = currentTime;
     }
 
     rawGantt.push({ processId: activeProc.id, time: currentTime });
     activeProc.remainingTime--;
-    currentQuantumUsed++;
+    quantumUsed++;
     currentTime++;
 
     if (activeProc.remainingTime === 0) {
       activeProc.completionTime = currentTime;
       completed++;
       activeProc = null;
-      currentQuantumUsed = 0;
+      quantumUsed = 0;
+      continue;
+    }
+
+    if (quantumUsed >= quantum) {
+      // Quantum expired — send to back of queue.
+      queue.push(activeProc);
+      queuedIds.add(activeProc.id);
+      activeProc = null;
+      quantumUsed = 0;
     }
   }
 
   const ganttChart = compressGantt(rawGantt);
   const processMetrics = computeProcessMetrics(procs);
-
-  return calculateSystemMetrics(`Round Robin (Q=${quantum}, Priority)`, ganttChart, processMetrics);
+  return calculateSystemMetrics(
+    `Round Robin (Q=${quantum})`,
+    ganttChart,
+    processMetrics
+  );
 }
 
-// Expose function to global scope
 window.runRoundRobin = runRoundRobin;
