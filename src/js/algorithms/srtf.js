@@ -1,10 +1,3 @@
-/**
- * src/js/algorithms/srtf.js
- *
- * Shortest Remaining Time First (SRTF) — preemptive.
- *   Primary criterion : shortest remaining time.
- *   Tiebreakers       : higher priority (5 > 1), then arrival time, then PID.
- */
 function runSRTF(processes) {
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
     ...p,
@@ -13,7 +6,7 @@ function runSRTF(processes) {
     completionTime: 0,
   }));
 
-  let currentTime = 1;
+  let currentTime = 0;
   let completed = 0;
   const totalProcesses = procs.length;
   const rawGantt = [];

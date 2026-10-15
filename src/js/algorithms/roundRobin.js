@@ -19,7 +19,7 @@ function runRoundRobin(processes, quantum = 2) {
     completionTime: 0,
   }));
 
-  let currentTime = 1;
+  let currentTime = 0;
   let completed = 0;
   const totalProcesses = procs.length;
   const rawGantt = [];
