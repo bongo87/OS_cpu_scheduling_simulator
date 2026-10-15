@@ -24,7 +24,13 @@ function runFCFS(processes) {
         continue;
       }
 
-      readyPool.sort((a, b) => a.arrivalTime - b.arrivalTime);
+      // Arrival order; priority and PID only break exact arrival ties.
+      readyPool.sort(
+        (a, b) =>
+          a.arrivalTime - b.arrivalTime ||
+          b.priority - a.priority ||
+          a.id.localeCompare(b.id, undefined, { numeric: true })
+      );
 
       activeProc = readyPool[0];
       if (activeProc.startTime === -1) activeProc.startTime = currentTime;
