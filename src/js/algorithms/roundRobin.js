@@ -1,13 +1,17 @@
-/**
- * src/js/algorithms/roundRobin.js
- *
- * Round Robin (RR) — preemptive by quantum.
- *   Primary criterion : circular order through a ready queue.
- *   Quantum applies uniformly to all processes.
- *
- * Note: priority is NOT used here. RR is order-based, not comparison-based.
- */
 function runRoundRobin(processes, quantum = 2) {
+  if (!Number.isInteger(quantum) || quantum <= 0) {
+    throw new Error("Time quantum must be a positive integer.");
+  }
+
+  if (processes.some((p) =>
+    !Number.isInteger(p.burstTime) ||
+    p.burstTime <= 0 ||
+    !Number.isInteger(p.arrivalTime) ||
+    p.arrivalTime < 0
+  )) {
+    throw new Error("Invalid process arrival or burst time.");
+  }
+
   const procs = JSON.parse(JSON.stringify(processes)).map((p) => ({
     ...p,
     remainingTime: p.burstTime,
@@ -20,15 +24,20 @@ function runRoundRobin(processes, quantum = 2) {
   const totalProcesses = procs.length;
   const rawGantt = [];
 
-  const queue = [];            // processes waiting for CPU
-  const queuedIds = new Set(); // prevent double-enqueue
+  const queue = [];
+  const queuedIds = new Set();
 
   let activeProc = null;
   let quantumUsed = 0;
 
   function enqueueArrivals() {
     procs.forEach((p) => {
-      if (p.arrivalTime <= currentTime && p.remainingTime > 0 && !queuedIds.has(p.id)) {
+      if (
+        p !== activeProc &&
+        p.arrivalTime <= currentTime &&
+        p.remainingTime > 0 &&
+        !queuedIds.has(p.id)
+      ) {
         queue.push(p);
         queuedIds.add(p.id);
       }
@@ -39,7 +48,11 @@ function runRoundRobin(processes, quantum = 2) {
     enqueueArrivals();
 
     if (!activeProc && queue.length === 0) {
-      rawGantt.push({ processId: "IDLE", time: currentTime });
+      rawGantt.push({
+        processId: "IDLE",
+        time: currentTime,
+      });
+
       currentTime++;
       continue;
     }
@@ -48,10 +61,17 @@ function runRoundRobin(processes, quantum = 2) {
       activeProc = queue.shift();
       queuedIds.delete(activeProc.id);
       quantumUsed = 0;
-      if (activeProc.startTime === -1) activeProc.startTime = currentTime;
+
+      if (activeProc.startTime === -1) {
+        activeProc.startTime = currentTime;
+      }
     }
 
-    rawGantt.push({ processId: activeProc.id, time: currentTime });
+    rawGantt.push({
+      processId: activeProc.id,
+      time: currentTime,
+    });
+
     activeProc.remainingTime--;
     quantumUsed++;
     currentTime++;
@@ -65,9 +85,11 @@ function runRoundRobin(processes, quantum = 2) {
     }
 
     if (quantumUsed >= quantum) {
-      // Quantum expired — send to back of queue.
+      enqueueArrivals();
+
       queue.push(activeProc);
       queuedIds.add(activeProc.id);
+
       activeProc = null;
       quantumUsed = 0;
     }
@@ -75,6 +97,7 @@ function runRoundRobin(processes, quantum = 2) {
 
   const ganttChart = compressGantt(rawGantt);
   const processMetrics = computeProcessMetrics(procs);
+
   return calculateSystemMetrics(
     `Round Robin (Q=${quantum})`,
     ganttChart,
