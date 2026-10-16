@@ -1,13 +1,3 @@
-/**
- * src/js/algorithms/charts.js
- * Shared helpers: system metric aggregation, Gantt compression,
- * per-process metric computation, and the row-style Gantt renderer.
- */
-
-/**
- * Aggregates per-process metrics plus the compressed Gantt chart
- * into system-level averages.
- */
 function calculateSystemMetrics(algorithmName, ganttChart, processMetrics) {
   const totalProcesses = processMetrics.length;
   if (totalProcesses === 0) {
@@ -47,9 +37,6 @@ function calculateSystemMetrics(algorithmName, ganttChart, processMetrics) {
   };
 }
 
-/**
- * Compresses sequential raw time steps into block intervals.
- */
 function compressGantt(rawGantt) {
   const compressed = [];
   if (!rawGantt || rawGantt.length === 0) return compressed;
@@ -79,9 +66,6 @@ function compressGantt(rawGantt) {
   return compressed;
 }
 
-/**
- * Computes turnaround time, waiting time, and response time per process.
- */
 function computeProcessMetrics(procs) {
   return procs.map((p) => {
     const turnaroundTime = p.completionTime - p.arrivalTime;
@@ -101,10 +85,6 @@ function computeProcessMetrics(procs) {
   });
 }
 
-/**
- * Renders a per-process execution grid:
- * [ Process ID | Priority | Arrival | Burst time | 1 | 2 | 3 ... N ]
- */
 function renderRowGanttChart(containerId, ganttChart, processes) {
   const container = document.getElementById(containerId);
   if (!container) {
@@ -117,6 +97,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
     return;
   }
 
+  const minTime = Math.min(...ganttChart.map((b) => b.startTime));
   const maxTime = Math.max(...ganttChart.map((b) => b.endTime));
 
   const sortedProcesses = [...processes].sort((a, b) =>
@@ -132,7 +113,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
     <th class="p-1 border border-gray-400 min-w-[50px]">Arrival</th>
     <th class="p-1 border border-gray-400 min-w-[65px]">Burst time</th>`;
 
-  for (let t = 1; t <= maxTime; t++) {
+  for (let t = minTime; t <= maxTime; t++) {
     html += `<th class="p-1 border border-gray-300 min-w-[24px] font-normal">${t}</th>`;
   }
   html += `</tr></thead><tbody>`;
@@ -144,7 +125,7 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
       <td class="p-1 border border-gray-400">${p.arrivalTime}</td>
       <td class="p-1 border border-gray-400">${p.burstTime}</td>`;
 
-    for (let t = 1; t <= maxTime; t++) {
+    for (let t = minTime; t <= maxTime; t++) {
       const isActive = ganttChart.some(
         (b) => b.processId === p.id && b.startTime <= t && b.endTime >= t
       );
@@ -162,7 +143,6 @@ function renderRowGanttChart(containerId, ganttChart, processes) {
   container.innerHTML = html;
 }
 
-// ---- Expose helpers to the algorithm files and simulator ----
 window.calculateSystemMetrics = calculateSystemMetrics;
 window.compressGantt = compressGantt;
 window.computeProcessMetrics = computeProcessMetrics;
