@@ -10,7 +10,7 @@ function runFCFS(processes) {
   let completed = 0;
   const totalProcesses = procs.length;
   const rawGantt = [];
-  let activeProc = null; // once picked, runs to completion
+  let activeProc = null;
 
   while (completed < totalProcesses) {
     if (!activeProc) {
@@ -24,7 +24,6 @@ function runFCFS(processes) {
         continue;
       }
 
-      // Arrival order; priority and PID only break exact arrival ties.
       readyPool.sort(
         (a, b) =>
           a.arrivalTime - b.arrivalTime ||
@@ -36,7 +35,6 @@ function runFCFS(processes) {
       if (activeProc.startTime === -1) activeProc.startTime = currentTime;
     }
 
-    // Run one time unit; no preemption.
     rawGantt.push({ processId: activeProc.id, time: currentTime });
     activeProc.remainingTime--;
     currentTime++;

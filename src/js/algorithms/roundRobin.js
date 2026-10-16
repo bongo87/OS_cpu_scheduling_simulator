@@ -33,16 +33,17 @@ function runRoundRobin(processes, quantum = 2) {
   function enqueueArrivals() {
     const arrivals = procs.filter(
       (p) =>
-        (!activeProc || p.id !== activeProc.id) &&
+        p !== activeProc &&
         p.arrivalTime <= currentTime &&
         p.remainingTime > 0 &&
         !queuedIds.has(p.id)
     );
 
-    arrivals.sort((a, b) =>
-      a.arrivalTime - b.arrivalTime ||
-      b.priority - a.priority ||
-      a.id.localeCompare(b.id, undefined, { numeric: true })
+    arrivals.sort(
+      (a, b) =>
+        a.arrivalTime - b.arrivalTime ||
+        b.priority - a.priority ||
+        a.id.localeCompare(b.id, undefined, { numeric: true })
     );
 
     arrivals.forEach((p) => {
@@ -55,7 +56,11 @@ function runRoundRobin(processes, quantum = 2) {
     enqueueArrivals();
 
     if (!activeProc && queue.length === 0) {
-      rawGantt.push({ processId: "IDLE", time: currentTime });
+      rawGantt.push({
+        processId: "IDLE",
+        time: currentTime,
+      });
+
       currentTime++;
       continue;
     }
@@ -70,7 +75,10 @@ function runRoundRobin(processes, quantum = 2) {
       }
     }
 
-    rawGantt.push({ processId: activeProc.id, time: currentTime });
+    rawGantt.push({
+      processId: activeProc.id,
+      time: currentTime,
+    });
 
     activeProc.remainingTime--;
     quantumUsed++;

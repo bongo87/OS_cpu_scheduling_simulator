@@ -1,18 +1,3 @@
-/**
- * src/js/simulator.js
- * CMPG324 — CPU Scheduling Simulator
- *
- * External dependencies (loaded BEFORE this file):
- *   - runFCFS(processes)
- *   - runSRTF(processes)
- *   - runRoundRobin(processes, quantum)
- *   - renderRowGanttChart(containerId, ganttChart, processes)
- *   - Chart.js
- */
-
-// ============================================================
-// 1. Module-level state
-// ============================================================
 let barChartInstance = null;
 let pieChartInstance = null;
 let trendChartInstance = null;
@@ -48,9 +33,6 @@ let currentWorkloadSeed = null;
 let currentQuantum = null;
 let currentProcessCount = 0;
 
-// ============================================================
-// 2. Boot
-// ============================================================
 document.addEventListener("DOMContentLoaded", () => {
   let currentProcesses = [];
 
@@ -187,7 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
 
-    <!-- Batch Study -->
     <div class="bg-white/80 border border-[#E4DDF2]/60 rounded-xl p-5 shadow-lg space-y-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -217,12 +198,10 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
   `;
 
-  // ============================================================
-  // 3. Helpers
-  // ============================================================
   const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
   function resetOutputs() {
+    batchResults = null;
     const metricsBody = document.getElementById("metricsTableBody");
     if (metricsBody) {
       metricsBody.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-slate-500">Run simulation to view metrics</td></tr>`;
@@ -284,23 +263,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const procs = [];
     let t = 1;
     for (let i = 1; i <= count; i++) {
-      t += Math.floor(rng() * 3);                       // arrival: random incremental
+      t += Math.floor(rng() * 3);
       procs.push({
         id: `P${i}`,
         arrivalTime: t,
-        burstTime: Math.floor(rng() * 10) + 1,          // 1–10
-        priority: Math.floor(rng() * 5) + 1,            // 1–5 (tiebreaker only)
+        burstTime: Math.floor(rng() * 10) + 1,
+        priority: Math.floor(rng() * 5) + 1,
       });
     }
     return procs;
   }
 
-  // ============================================================
-  // 4. Batch study
-  // ============================================================
   function runBatchStudy() {
-    // Anchor the batch to the current workload's seed so results are
-    // reproducible for a given session, then offset per count + trial.
     const baseSeed = currentWorkloadSeed ?? 12345;
     const quantum = currentQuantum ?? FALLBACK_QUANTUM;
 
@@ -349,9 +323,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return { processCounts: BATCH_PROCESS_COUNTS, algorithms: algos, series };
   }
 
-  // ============================================================
-  // 5. Trend chart
-  // ============================================================
   function renderTrendChart(metric) {
     const canvas = document.getElementById("trendChart");
     if (!canvas || !batchResults) return;
@@ -400,16 +371,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ============================================================
-  // 6. Single-workload flow
-  // ============================================================
   function generateWorkload() {
     const count = parseInt(document.getElementById("processCountSelect").value, 10);
     const seed = Math.floor(Math.random() * 1e9);
 
     currentWorkloadSeed = seed;
     currentProcessCount = count;
-    currentQuantum = Math.floor(Math.random() * 5) + 2; // 2–6
+    currentQuantum = Math.floor(Math.random() * 5) + 2;
 
     const rng = seededRandom(seed);
     currentProcesses = buildWorkload(count, rng);
@@ -545,7 +513,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function executeSimulation() {
-    // Pull the latest user edits from the DOM into currentProcesses.
     document.querySelectorAll(".process-input").forEach((input) => {
       const index = parseInt(input.getAttribute("data-index"), 10);
       const field = input.getAttribute("data-field");
@@ -590,9 +557,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderComparisonChart(results);
   }
 
-  // ============================================================
-  // 7. Wire up events
-  // ============================================================
   document.getElementById("btnGenerate").addEventListener("click", () => generateWorkload());
   document.getElementById("btnRun").addEventListener("click", () => executeSimulation());
   document.getElementById("btnClear").addEventListener("click", () => clearAll());
@@ -606,6 +570,5 @@ document.addEventListener("DOMContentLoaded", () => {
     if (batchResults) renderTrendChart(e.target.value);
   });
 
-  // Initial workload
   generateWorkload();
 });

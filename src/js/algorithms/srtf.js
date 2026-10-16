@@ -22,7 +22,6 @@ function runSRTF(processes) {
       continue;
     }
 
-    // Shortest remaining time wins; priority/arrival/PID break ties.
     readyPool.sort(
       (a, b) =>
         a.remainingTime - b.remainingTime ||
